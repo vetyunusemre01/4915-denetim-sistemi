@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1b4332">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>4915 Saha Denetim Sistemi</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+    <style>
+        :root { --primary: #1b4332; --secondary: #2d6a4f; --accent: #52b788; --bg: #f4f6f8; --danger: #d00000; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background-color: var(--bg); color: #333; padding-bottom: 30px; -webkit-tap-highlight-color: transparent; }
+        header { background-color: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; padding-top: max(15px, env(safe-area-inset-top)); }
+        header h1 { font-size: 1.1rem; margin: 0; }
+        .home-icon { font-size: 1.5rem; cursor: pointer; }
+        .container { padding: 15px; max-width: 800px; margin: auto; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card { background: white; border-radius: 8px; padding: 20px 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; border: 1px solid #e9ecef; transition: 0.1s; }
+        .card:active { transform: scale(0.96); background-color: #f1f8f4; border-color: var(--accent); }
+        .card-icon { font-size: 2rem; margin-bottom: 10px; }
+        .card-title { font-weight: bold; color: var(--primary); margin-bottom: 5px; font-size: 0.9rem; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #495057;}
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px; background: white; }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+        select:disabled { background-color: #e9ecef; color: #6c757d; }
+        button.btn { background-color: var(--secondary); color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%; font-weight: bold; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        button.btn:active { background-color: var(--primary); }
+        button.btn-danger { background-color: var(--danger); }
+        button.btn-outline { background-color: transparent; border: 2px solid var(--secondary); color: var(--secondary); }
+        
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .list-item { background: white; border-left: 4px solid var(--accent); padding: 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;}
+        .list-item h4 { margin: 0 0 5px 0; color: var(--primary); }
+        .list-item small { color: #6c757d; display: block; margin-bottom: 3px; }
+        .btn-sil { background: #ffe3e3; color: var(--danger); border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; position: absolute; top: 10px; right: 10px; }
+        .back-btn { background: #e9ecef; border: none; color: var(--primary); font-size: 0.9rem; cursor: pointer; margin-bottom: 15px; padding: 10px 15px; font-weight: bold; border-radius: 5px; display: inline-block; }
+        .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.85rem;}
+        .stat-box { background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        .stat-box h2 { margin: 5px 0; font-size: 1.8rem; }
+        
+        /* SEPET VE LİSTE STİLLERİ */
+        .arama-kutusu { padding: 12px; border: 2px solid var(--accent); margin-bottom: 10px; border-radius: 6px; font-size: 16px; }
+        .liste-container { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; background: white; margin-bottom: 15px; }
+        .liste-oge { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+        .liste-oge:last-child { border-bottom: none; }
+        .liste-oge-info { flex: 1; padding-right: 10px; }
+        .liste-oge-title { font-weight: bold; color: var(--primary); font-size: 0.9rem; margin-bottom: 2px; }
+        .liste-oge-price { color: #d00000; font-weight: bold; font-size: 0.85rem; }
+        .btn-ekle { background: var(--secondary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; white-space: nowrap; }
+        .btn-ekle:disabled { background: #ccc; color: #666; cursor: not-allowed; }
+        
+        .sepet-container { background: #fff; border: 2px solid var(--accent); border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .sepet-header { background: var(--primary); color: white; padding: 12px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
+        .sepet-oge { display: flex; flex-direction: column; padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .sepet-oge-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .sepet-oge-title { font-weight: 600; font-size: 0.9rem; flex: 1; padding-right: 10px; color: #333; }
+        .sepet-oge-actions { display: flex; align-items: center; gap: 10px; }
+        .sepet-oge-actions input[type="number"] { width: 60px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;}
+        .btn-kaldir { background: #ffe3e3; border: none; color: var(--danger); padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: bold; }
+        .sepet-toplam { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #e8f5e9; border-top: 2px solid #4caf50; font-weight: bold; }
+        .sepet-toplam h2 { margin: 0; color: #2e7d32; font-size: 1.4rem;}
+        
+        .carpan-grubu { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+        .carpan-grubu label { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; background: #f8f9fa; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; flex: 1; justify-content: center;}
+        .carpan-grubu input[type="radio"] { width: auto; transform: scale(1.3); margin: 0;}
+
+        .il-ilce-row { display: flex; gap: 10px; }
+        .il-ilce-row > div { flex: 1; }
+
+        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .checkbox-item { display: flex; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
+        .checkbox-item input { width: auto; margin-right: 10px; transform: scale(1.2); }
+        .checkbox-item label { margin-bottom: 0; font-weight: normal; cursor: pointer; font-size: 0.85rem; }
+
+        /* TUTANAK FORMU ÖZEL STİLLERİ */
+        .tutanak-form-baslik { text-align: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 15px; }
+        .tutanak-form-baslik h2 { font-size: 1.2rem; margin: 0 0 5px 0; color: var(--primary); }
+        .tutanak-form-baslik p { margin: 0; font-size: 0.8rem; font-weight: bold; }
+        .form-section-title { background: #e9ecef; padding: 8px; font-weight: bold; text-align: center; margin: 15px 0 10px 0; border-radius: 4px; font-size: 0.9rem; border: 1px solid #ced4da;}
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+        /* YAZDIRMA ALANI (A4 Resmi Belge Formatı) */
+        #print-area { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block; padding: 0; margin: 0; font-family: 'Times New Roman', serif; font-size: 11px; line-height: 1.3;}
+            
+            .p-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+            .p-header-left { font-weight: bold; line-height: 1.3; }
+            .p-header-right { text-align: right; font-weight: bold; }
+            .p-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 15px; text-decoration: underline; }
+            
+            .p-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            .p-table th, .p-table td { border: 1px solid #000; padding: 4px; text-align: center; }
+            .p-table th { background-color: #f2f2f2; font-weight: bold; }
+            .p-table-left { text-align: left !important; }
+            
+            .p-text-area { margin-bottom: 10px; line-height: 1.5; text-align: justify;}
+            
+            .p-signatures { display: flex; justify-content: space-between; margin-top: 30px; text-align: center; font-weight: bold; }
+            .p-sig-box { width: 30%; }
+            .p-sig-line { margin-top: 40px; border-bottom: 1px solid #000; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 onclick="navigateTo('dashboard')" style="cursor:pointer;">🦌 4915 Saha Sistemi</h1>
+        <div class="home-icon" onclick="navigateTo('dashboard')">🏠</div>
+    </header>
+
+    <div class="container">
+        
+        <!-- ANA EKRAN -->
+        <div id="screen-dashboard" class="screen active">
+            <div class="dashboard-grid">
+                <div class="card" onclick="navigateTo('saha-denetimi')"><div class="card-icon">📋</div><div class="card-title">Saha Denetimi</div></div>
+                <div class="card" onclick="navigateTo('denetim-kayitlari')"><div class="card-icon">🗂️</div><div class="card-title">Denetim Kayıtları</div></div>
+                <div class="card" onclick="navigateTo('tutanaklar')"><div class="card-icon">📄</div><div class="card-title">Tutanaklar</div></div>
+                <div class="card" onclick="navigateTo('yaptirimlar')"><div class="card-icon">⚖️</div><div class="card-title">İdari Yaptırım</div></div>
+                <div class="card" onclick="navigateTo('tazminatlar')"><div class="card-icon">💸</div><div class="card-title">Tazminat</div></div>
+                <div class="card" onclick="navigateTo('mevzuat')"><div class="card-icon">📚</div><div class="card-title">Mevzuat & MAK</div></div>
+                <div class="card" onclick="navigateTo('raporlar')"><div class="card-icon">📊</div><div class="card-title">Raporlar</div></div>
+                <div class="card" onclick="navigateTo('ayarlar')"><div class="card-icon">⚙️</div><div class="card-title">Ayarlar</div></div>
+            </div>
+        </div>
+
+        <!-- SAHA DENETİMİ (GÜNCELLENDİ: İlçe kaldırıldı) -->
+        <div id="screen-saha-denetimi" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Yeni Saha Denetimi</h2>
+            <form id="form-denetim">
+                <div class="form-group"><label>Tarih / Saat</label><input type="datetime-local" id="denetimTarih" required></div>
+                
+                <div class="form-group">
+                    <label>Bölge Müdürlüğü</label>
+                    <select id="denetimBolge" onchange="denetimBolgeSecildi()" required>
+                        <option value="">Seçiniz</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DKMP Müdürlüğü</label>
+                    <select id="denetimDkmpIl" onchange="denetimDkmpIlSecildi()" required disabled>
+                        <option value="">Önce Bölge Seçin</option>
+                    </select>
+                </div>
+
+                <!-- İlçe kaldırıldı, sadece Avlak kısmı kaldı -->
+                <div class="form-group">
+                    <label>Avlak / Saha Adı</label>
+                    <select id="denetimAvlak" onchange="denetimAvlakSecimDegisti()" required disabled>
+                        <option value="">Önce İl Seçin</option>
+                    </select>
+                    <input type="text" id="denetimAvlakManuel" placeholder="Avlak adını buraya yazın..." style="display:none; margin-top:5px;">
+                </div>
+
+                <div class="form-group">
+                    <label>Mevki Türü</label>
+                    <select id="denetimMevkiTuru" required>
+                        <option value="Avlak">Avlak</option>
+                        <option value="YHGS">YHGS (Yaban Hayatı Geliştirme Sahası)</option>
+                        <option value="Meskun Mahal">Meskun Mahal (Yerleşim Yeri)</option>
+                        <option value="Diğer">Diğer (Açık Alan vb.)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mevki / Detay Adres</label>
+                    <input type="text" id="denetimYer" placeholder="Örn: Orman içi patika, Merkez..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Koordinat (İsteğe Bağlı)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="denetimKoordinat" placeholder="36.123, 30.456">
+                        <button type="button" class="btn" style="width:auto; padding:0 15px; margin:0;" onclick="konumAl()">📍</button>
+                    </div>
+                </div>
+                <div class="form-group"><label>Tespit Edilen Durum</label>
+                    <select id="denetimDurum">
+                        <option value="Kusur Yok">Usulüne Uygun / Kusur Yok</option>
+                        <option value="Belgesiz Avlanma">Belgesiz Avlanma (4915/24)</option>
+                        <option value="Yasak Bölge">Yasak Bölgede Avlanma (4915/14)</option>
+                        <option value="Usulsüz Tüfek">Takozsuz Tüfek Kullanımı</option>
+                        <!-- Limit Aşımı Eklendi -->
+                        <option value="Limit Aşımı">Limit Aşımı (MAK 6/1)</option>
+                        <option value="Diğer">Diğer İhlal</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Notlar / Gözlemler</label><textarea id="denetimNot" rows="3" placeholder="Detayları buraya yazın..."></textarea></div>
+                <button type="submit" class="btn">💾 Denetimi Kaydet</button>
+            </form>
+        </div>
+
+        <!-- DENETİM KAYITLARI -->
+        <div id="screen-denetim-kayitlari" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Kayıtlı Denetimler</h2>
+            <div id="denetim-listesi"></div>
+        </div>
+
+        <!-- TUTANAKLAR -->
+        <div id="screen-tutanaklar" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            
+            <form id="form-tutanak" style="background:white; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                <div class="tutanak-form-baslik">
+                    <h2>AV KABAHATİ TUTANAĞI</h2>
+                    <p>T.C. TARIM VE ORMAN BAKANLIĞI</p>
+                    <p>Doğa Koruma ve Milli Parklar Genel Müdürlüğü</p>
+                </div>
+
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Bölge Müdürlüğü</label>
+                        <select id="tutanakBolge" onchange="bolgeSecimleriDoldur()" required>
+                            <option value="">Seçiniz</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>DKMP Müdürlüğü</label>
+                        <select id="tutanakDkmpIl" onchange="dkmpIlSecildi()" required disabled>
+                            <option value="">Önce Bölge Seçin</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row-3">
+                    <div class="form-group"><label>Seri</label><input type="text" id="tutanakSeri" value="A" required></div>
+                    <div class="form-group"><label>Sayfa No</label><input type="text" id="tutanakSayfaNo" placeholder="1" required></div>
+                    <div class="form-group"><label>Tutanak No</label><input type="text" id="tutanakNo" placeholder="000626" required></div>
+                </div>
+
+                <div class="form-section-title">SANIĞIN BİLGİLERİ</div>
+                <div class="form-group"><label>Adı Soyadı</label><input type="text" id="tutanakMuhatap" required></div>
+                <div class="row-2">
+                    <div class="form-group"><label>T.C. Kimlik No</label><input type="text" id="tutanakTc" maxlength="11" required></div>
+                    <div class="form-group"><label>Baba Adı</label><input type="text" id="tutanakBabaAdi" required></div>
+                </div>
+                <div class="row-2">
+                    <div class="form-group"><label>Doğum Yeri</label><input type="text" id="tutanakDogumYeri" required></div>
+                    <div class="form-group"><label>Doğum Tarihi</label><input type="date" id="tutanakDogumTarihi" required></div>
+                </div>
+                <div class="form-group"><label>Açık Adresi</label><textarea id="tutanakAdres" rows="2" required></textarea></div>
+
+                <div class="form-section-title">EL KONULANLAR</div>
+                <div class="form-group">
+                    <label>Araç ve Gereçler (Birden fazla seçilebilir)</label>
+                    <div class="checkbox-grid" id="tutanakElKonulanAracListesi">
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_tufek" value="Yarı Otomatik Tüfek"><label for="t_mat_tufek">Yarı Otomatik Tüfek</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_arac" value="Araç"><label for="t_mat_arac">Araç</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_kafes" value="Kafes"><label for="t_mat_kafes">Kafes</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_tuzak" value="Tuzak"><label for="t_mat_tuzak">Tuzak</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_fener" value="El Feneri"><label for="t_mat_fener">El Feneri</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_projektor" value="El Projektörü"><label for="t_mat_projektor">El Projektörü</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_aku" value="Akü"><label for="t_mat_aku">Akü</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_teyp" value="Teyp"><label for="t_mat_teyp">Teyp</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_kafalambasi" value="Kafa Lambası"><label for="t_mat_kafalambasi">Kafa Lambası</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_batarya" value="Batarya"><label for="t_mat_batarya">Batarya</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="t_mat_sessistemi" value="Ses Sistemi"><label for="t_mat_sessistemi">Ses Sistemi</label></div>
+                    </div>
+                    <input type="text" id="tutanakElKonulanAracDiger" placeholder="Diğer (Varsa belirtin)">
+                </div>
+                <div class="form-group"><label>Avın (Cinsi, Adet, Açıklama)</label><textarea id="tutanakElKonulanAv" rows="2" placeholder="Örn: 2 Adet Kınalı Keklik..."></textarea></div>
+
+                <div class="form-section-title">AVLANILAN SAHANIN</div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>İli</label>
+                        <select id="tutanakAvIl" onchange="ilceleriDoldurTutanak()" required>
+                            <option value="">İl Seçin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>İlçesi</label>
+                        <select id="tutanakAvIlce" required disabled>
+                            <option value="">Önce İl Seçin</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Avlak / Saha Adı</label>
+                        <select id="tutanakAvlak" onchange="avlakSecimDegisti()" required disabled>
+                            <option value="">Önce İl Seçin</option>
+                        </select>
+                        <!-- Manuel giriş kutusu (Diğer seçildiğinde görünür) -->
+                        <input type="text" id="tutanakAvlakManuel" placeholder="Avlak adını buraya yazın..." style="display:none; margin-top:5px;">
+                    </div>
+                    <div class="form-group"><label>Mevkii / Detay</label><input type="text" id="tutanakAvMevki" placeholder="Orman içi patika vb." required></div>
+                </div>
+                
+                <div class="row-2">
+                    <div class="form-group"><label>Saati</label><input type="time" id="tutanakAvSaat" required></div>
+                </div>
+
+                <div class="form-section-title">İHLAL EDİLEN KANUN, KARAR ve AÇIKLAMASI</div>
+                <div class="form-group">
+                    <label>İhlal Ara ve Ekle</label>
+                    <input type="text" id="ihlalArama" class="arama-kutusu" placeholder="Madde no veya ihlal adı yazın..." oninput="filtreleIhlalListesi()">
+                    
+                    <div id="ihlal-listesi-container" class="liste-container"></div>
+
+                    <div class="sepet-container">
+                        <div class="sepet-header">
+                            <span>Seçilen İhlaller</span>
+                            <span id="ihlalSepetSayisi" style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.8rem;">0</span>
+                        </div>
+                        <div id="ihlal-sepeti"></div>
+                    </div>
+                </div>
+
+                <div class="form-group"><label>Olay Özeti / İfade</label><textarea id="tutanakMetin" rows="4" required>Yukarıda adı ve açık adresi yazılı şahıs belirtilen gün ve saatte, belirtilen mevkide avlanmakta iken tarafımızca görüldü. Şahıstan (1) Yivsiz Tüfek Ruhsatnamesi (2) Avcılık Belgesi (3) Avlanma Kartı istendiğinde ... numaralı belgelerin olmadığı anlaşıldı. Yapılan incelemede usulsüz avlandığı tespit edilmiştir.</textarea></div>
+
+                <button type="submit" class="btn">📄 Tutanağı Kaydet</button>
+            </form>
+            
+            <h3>Geçmiş Tutanaklar</h3>
+            <div id="tutanak-listesi"></div>
+        </div>
+
+        <!-- İDARİ YAPTIRIMLAR -->
+        <div id="screen-yaptirimlar" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>İdari Yaptırım (2026)</h2>
+            <div class="warning-box">2026 yılı İdari Para Cezaları Cetveli. Arama yaparak ihlalleri sepetinize ekleyin.</div>
+            
+            <form id="form-ceza">
+                <div class="form-group"><label>Muhatap Ad Soyad</label><input type="text" id="cezaMuhatap" required></div>
+                
+                <label>İhlal Ara ve Ekle</label>
+                <input type="text" id="cezaArama" class="arama-kutusu" placeholder="Madde no veya ihlal adı yazın..." oninput="filtreleCezaListesi()">
+                
+                <div id="ceza-listesi-container" class="liste-container"></div>
+
+                <div class="sepet-container">
+                    <div class="sepet-header">
+                        <span>Seçilen İhlaller</span>
+                        <span id="cezaSepetSayisi" style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.8rem;">0</span>
+                    </div>
+                    <div id="ceza-sepeti"></div>
+                </div>
+
+                <div class="carpan-grubu">
+                    <label><input type="radio" name="cezaCarpan" value="1" checked onchange="guncelleCezaToplam()"> Normal (1x)</label>
+                    <label><input type="radio" name="cezaCarpan" value="3" onchange="guncelleCezaToplam()"> Mükerrer (3x)</label>
+                    <label><input type="radio" name="cezaCarpan" value="2" onchange="guncelleCezaToplam()"> FAM (2x)</label>
+                </div>
+
+                <div class="sepet-toplam">
+                    <span>Toplam Ceza:</span>
+                    <h2 id="cezaToplamTutar">0,00 ₺</h2>
+                </div>
+                <button type="submit" class="btn">⚖️ Cezaları Kaydet</button>
+            </form>
+            <h3>Geçmiş Cezalar</h3>
+            <div id="ceza-kayitlari"></div>
+        </div>
+
+        <!-- TAZMİNATLAR -->
+        <div id="screen-tazminatlar" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Tazminat Hesaplama (2026-2027)</h2>
+            <div class="warning-box">2026-2027 Av Dönemi Tazminat Bedelleri. Listeden arayıp sepetinize ekleyin.</div>
+            
+            <form id="form-tazminat">
+                <div class="form-group"><label>Muhatap Ad Soyad</label><input type="text" id="tazminatMuhatap" required></div>
+                
+                <label>Tür Ara ve Ekle</label>
+                <input type="text" id="tazminatArama" class="arama-kutusu" placeholder="Tür adı yazın (Örn: Pars, Keklik...)" oninput="filtreleTazminatListesi()">
+                
+                <div id="tazminat-listesi-container" class="liste-container"></div>
+
+                <div class="sepet-container">
+                    <div class="sepet-header">
+                        <span>Seçilen Türler</span>
+                        <span id="tazminatSepetSayisi" style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.8rem;">0</span>
+                    </div>
+                    <div id="tazminat-sepeti"></div>
+                </div>
+
+                <div class="sepet-toplam" style="background:#e3f2fd; border-color:#2196f3;">
+                    <span>Toplam Tazminat:</span>
+                    <h2 id="tazminatToplamTutar" style="color:#0d47a1;">0,00 ₺</h2>
+                </div>
+                <button type="submit" class="btn">💸 Tazminatları Kaydet</button>
+            </form>
+        </div>
+
+        <!-- MEVZUAT -->
+        <div id="screen-mevzuat" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Mevzuat ve MAK Kararları</h2>
+            <div class="list-item">
+                <h4>2026 İdari Para Cezaları</h4>
+                <p>En düşük ceza 481 TL, en yüksek ceza 302.484 TL'dir. Mükerrerlik halinde 3 katı uygulanır.</p>
+            </div>
+        </div>
+
+        <!-- RAPORLAR -->
+        <div id="screen-raporlar" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Saha İstatistikleri</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div class="stat-box"><div style="font-size:0.8rem; color:#666;">Toplam Denetim</div><h2 id="stat-denetim" style="color: var(--secondary);">0</h2></div>
+                <div class="stat-box"><div style="font-size:0.8rem; color:#666;">Tutanak</div><h2 id="stat-tutanak" style="color: var(--danger);">0</h2></div>
+                <div class="stat-box"><div style="font-size:0.8rem; color:#666;">Toplam Ceza</div><h2 id="stat-ceza" style="color: #0d47a1; font-size:1.3rem;">0 ₺</h2></div>
+            </div>
+        </div>
+
+        <!-- AYARLAR -->
+        <div id="screen-ayarlar" class="screen">
+            <button class="back-btn" onclick="navigateTo('dashboard')">← Ana Menü</button>
+            <h2>Sistem Ayarları</h2>
+            <div class="list-item" style="border-color: #2196f3;">
+                <p><strong>Versiyon:</strong> v6.6.0 (Kişi ve el koyma modülleri kaldırıldı - test)</p>
+            </div>
+            <button class="btn btn-outline" onclick="veriYedekle()">💾 Verileri Yedekle</button>
+            <label for="yedek-dosya">Yedekten Geri Yükle (JSON)</label>
+            <input type="file" id="yedek-dosya" accept=".json,application/json" onchange="yedektenYukle(event)">
+            <p style="font-size:.85rem">Geri yükleme mevcut verilerin yerine geçer. Önce yedek alın.</p>
+            <button class="btn btn-danger" onclick="verileriSifirla()" style="margin-top: 20px;">⚠️ Tüm Verileri Sil</button>
+        </div>
+
+    </div>
+
+    <!-- YAZDIRMA ALANI -->
+    <div id="print-area">
+        <div class="p-header">
+            <div class="p-header-left">
+                T.C.<br>
+                TARIM VE ORMAN BAKANLIĞI<br>
+                Doğa Koruma ve Milli Parklar Genel Müdürlüğü<br>
+                <span id="p-bolge"></span><br>
+                <span id="p-dkmp"></span>
+            </div>
+            <div class="p-header-right">
+                Seri: <span id="p-seri"></span><br>
+                Sayfa No: <span id="p-sayfa"></span><br>
+                <span style="font-size: 14px;">No: <span id="p-no"></span></span>
+            </div>
+        </div>
+        
+        <div class="p-title">AV KABAHATİ TUTANAĞI</div>
+
+        <table class="p-table">
+            <tr><th colspan="6">SANIĞIN</th></tr>
+            <tr>
+                <th>ADI SOYADI</th><th>T.C. KİMLİK NO</th><th>BABA ADI</th><th>D. YERİ</th><th>D. TARİHİ</th><th>AÇIK ADRESİ</th>
+            </tr>
+            <tr>
+                <td id="p-muhatap"></td><td id="p-tc"></td><td id="p-baba"></td><td id="p-dogumyeri"></td><td id="p-dogumtarihi"></td><td id="p-adres"></td>
+            </tr>
+        </table>
+
+        <table class="p-table">
+            <tr><th colspan="8">EL KONULAN</th></tr>
+            <tr>
+                <th colspan="5">ARAÇ ve GEREÇLERİN</th>
+                <th colspan="3">AVIN</th>
+            </tr>
+            <tr>
+                <td colspan="5" class="p-table-left" id="p-elkonulanarac"></td>
+                <td colspan="3" class="p-table-left" id="p-elkonulanav"></td>
+            </tr>
+        </table>
+
+        <table class="p-table">
+            <tr><th colspan="5">AVLANILAN SAHANIN</th></tr>
+            <tr>
+                <th>İLİ</th><th>İLÇESİ</th><th>AVLAK/SAHA</th><th>MEVKİİ</th><th>SAATİ</th>
+            </tr>
+            <tr>
+                <td id="p-avil"></td><td id="p-avilce"></td><td id="p-avlak"></td><td id="p-avmevki"></td><td id="p-avsaat"></td>
+            </tr>
+        </table>
+
+        <div style="font-weight: bold; text-align: center; margin: 10px 0;">İHLAL EDİLEN KANUN, KARAR ve AÇIKLAMASI</div>
+        <div class="p-text-area" id="p-ihlal-listesi">
+            <!-- JS ile doldurulacak -->
+        </div>
+
+        <div class="p-text-area" id="p-metin">
+            <!-- JS ile doldurulacak -->
+        </div>
+
+        <div class="p-text-area" style="margin-top: 15px;">
+            4915 Sayılı Kara Avcılığı Kanunu ile 2026-2027 Av Dönemi Merkez Av Komisyonu Kararı'nın yukarıda belirtilen ilgili maddesine aykırı olarak usulsüz avlanan yukarıda adı ve açık adresi yazılı sanığa ait av tüfeği / av malzemelerine / av arac ve gereçlerine / av hayvanlarına ilgili kanun gereği el konulmuştur.<br><br>
+            Bahse konu sanık hakkında yasal işlem yapmak üzere;<br>
+            İş bu Av Kabahati Tutanağı tarafımızdan tanzim edilerek imza altına alınmıştır. ...../...../2026
+        </div>
+
+        <div class="p-signatures">
+            <div class="p-sig-box">
+                AV KORUMA MEMURU<br>
+                <div class="p-sig-line"></div>
+            </div>
+            <div class="p-sig-box">
+                AV KORUMA MEMURU<br>
+                <div class="p-sig-line"></div>
+            </div>
+            <div class="p-sig-box">
+                AV KORUMA MEMURU<br>
+                <div class="p-sig-line"></div>
+            </div>
+        </div>
+
+        <div class="p-signatures" style="margin-top: 40px;">
+            <div class="p-sig-box">
+                TANIK TANIKLAR<br>
+                <div class="p-sig-line"></div>
+            </div>
+            <div class="p-sig-box">
+                SANIK<br>
+                <div class="p-sig-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Hatası', err));
+        }
+
+        // Veritabanı (Versiyon 7: ilce alanı şemadan çıkarıldı)
+        const db = new Dexie('KaraAvciligiSahaDB');
+        db.version(7).stores({
+            denetimler: '++id, tarih, bolge, dkmpIl, avlak, durum',
+            tutanaklar: '++id, tutanakNo, muhatap, tarih',
+            cezalar: '++id, muhatap, cezaTuru, tutar, tarih',
+            tazminatlar: '++id, muhatap, tur, tutar, tarih',
+            elkoymalar: '++id, materyal, tarih'
+        });
+
+        db.version(8).stores({
+            denetimler: '++id, tarih, bolge, dkmpIl, avlak, durum',
+            tutanaklar: '++id, tutanakNo, muhatap, tarih',
+            cezalar: '++id, muhatap, cezaTuru, tutar, tarih',
+            tazminatlar: '++id, muhatap, tur, tutar, tarih',
+            elkoymalar: '++id, materyal, tarih',
+            kisiler: '++id, ad, olusturmaTarihi'
+        });
+
+        // ============================================================
+        // 15 BÖLGE MÜDÜRLÜĞÜ VE BAĞLI İL DKMP MÜDÜRLÜKLERİ
+        // ============================================================
+        const dkmpBolgeIlVerisi = {
+            "1. Bölge Müdürlüğü (İstanbul)": ["İstanbul", "Kocaeli", "Tekirdağ", "Sakarya", "Edirne", "Kırklareli"],
+            "2. Bölge Müdürlüğü (Bursa)": ["Bursa", "Balıkesir", "Çanakkale", "Bilecik", "Yalova"],
+            "3. Bölge Müdürlüğü (Şanlıurfa)": ["Şanlıurfa", "Gaziantep", "Mardin", "Adıyaman", "Kilis", "Şırnak"],
+            "4. Bölge Müdürlüğü (Manisa)": ["Manisa", "İzmir", "Aydın", "Muğla"],
+            "5. Bölge Müdürlüğü (Afyonkarahisar)": ["Afyonkarahisar", "Eskişehir", "Denizli", "Kütahya", "Uşak"],
+            "6. Bölge Müdürlüğü (Burdur)": ["Burdur", "Antalya", "Isparta"],
+            "7. Bölge Müdürlüğü (Adana)": ["Adana", "Mersin", "Kayseri", "Hatay", "Niğde", "Osmaniye"],
+            "8. Bölge Müdürlüğü (Konya)": ["Konya", "Karaman", "Aksaray", "Nevşehir"],
+            "9. Bölge Müdürlüğü (Ankara)": ["Ankara", "Kırıkkale", "Bolu", "Düzce", "Çankırı", "Kırşehir", "Yozgat"],
+            "10. Bölge Müdürlüğü (Sinop)": ["Sinop", "Karabük", "Kastamonu", "Bartın", "Zonguldak"],
+            "11. Bölge Müdürlüğü (Samsun)": ["Samsun", "Ordu", "Amasya", "Çorum", "Tokat"],
+            "12. Bölge Müdürlüğü (Rize)": ["Rize", "Trabzon", "Giresun", "Gümüşhane", "Artvin"],
+            "13. Bölge Müdürlüğü (Erzurum)": ["Erzurum", "Erzincan", "Bayburt", "Kars", "Ardahan", "Bingöl", "Ağrı", "Iğdır"],
+            "14. Bölge Müdürlüğü (Van)": ["Van", "Bitlis", "Siirt", "Muş", "Hakkari"],
+            "15. Bölge Müdürlüğü (Malatya)": ["Malatya", "Elazığ", "Diyarbakır", "Sivas", "Kahramanmaraş", "Tunceli", "Batman"]
+        };
+
+        // ============================================================
+        // MAK KARARI EK-3 LİSTESİNE GÖRE BÖLGELERE AİT AVLAKLAR
+        // ============================================================
+        const bolgeAvlakVerisi = {
+            "1. Bölge Müdürlüğü (İstanbul)": [
+                "İstanbul - Sarıkavak Devlet Avlağı",
+                "Kocaeli - Gebze Devlet Avlağı"
+            ],
+            "2. Bölge Müdürlüğü (Bursa)": [
+                "Bilecik - Gölpazarı Devlet Avlağı",
+                "Bilecik - Osmaneli Devlet Avlağı"
+            ],
+            "3. Bölge Müdürlüğü (Şanlıurfa)": [
+                "Adıyaman - Akdağ Devlet Avlağı",
+                "Adıyaman - Gürlevik Devlet Avlağı",
+                "Adıyaman - Hisar Şengil Devlet Avlağı",
+                "Adıyaman - İnlice Devlet Avlağı",
+                "Adıyaman - Meydan Devlet Avlağı",
+                "Adıyaman - Rezip Devlet Avlağı",
+                "Adıyaman - Tut Devlet Avlağı",
+                "Adıyaman - Ulubaba Devlet Avlağı",
+                "Şanlıurfa - Eyyübiye Altınbaşak Genel Avlağı",
+                "Şırnak - Alkemer Devlet Avlağı",
+                "Şırnak - Beytüşşebap Boğazören Devlet Avlağı",
+                "Şırnak - Beytüşşebap Güneyyaka Devlet Avlağı",
+                "Şırnak - Beytüşşebap Kömürlü Devlet Avlağı",
+                "Şırnak - Beytüşşebap Ovacık Devlet Avlağı",
+                "Şırnak - Dereler Devlet Avlağı",
+                "Şırnak - Güçlükonak Devlet Avlağı",
+                "Şırnak - Kasrik Devlet Avlağı",
+                "Şırnak - Meryem Devlet Avlağı",
+                "Şırnak - Uludere Bulakbaşı Devlet Avlağı",
+                "Şırnak - Uludere Işıkveren Devlet Avlağı",
+                "Şırnak - Çağlayan Genel Avlağı",
+                "Şırnak - Sırtköy Genel Avlağı",
+                "Şırnak - Yaylaköy Genel Avlağı",
+                "Batman - Doğu Raman Devlet Avlağı",
+                "Batman - Gercüş Sapanlı Devlet Avlağı",
+                "Batman - Gercüş Sargın Devlet Avlağı",
+                "Batman - Sason Çamlıca Genel Avlağı"
+            ],
+            "4. Bölge Müdürlüğü (Manisa)": [
+                "İzmir - Çeşme Devlet Avlağı",
+                "İzmir - Ödemiş Devlet Avlağı",
+                "İzmir - Seferihisar Devlet Avlağı",
+                "Muğla - Namnam Devlet Avlağı"
+            ],
+            "5. Bölge Müdürlüğü (Afyonkarahisar)": [
+                "Afyonkarahisar - Hacıahmetli Devlet Avlağı",
+                "Afyonkarahisar - Evciler Genel Avlağı",
+                "Afyonkarahisar - Şuhut Genel Avlağı",
+                "Afyonkarahisar - Ümraniye Genel Avlağı",
+                "Afyonkarahisar - Eber Genel Avlağı",
+                "Eskişehir - Alpu Başören Devlet Avlağı",
+                "Eskişehir - Sivrihisar Nasrettin Hoca Devlet Avlağı",
+                "Eskişehir - Çifteler Başkurt Genel Avlağı",
+                "Eskişehir - Sivrihisar Acıköy Genel Avlağı",
+                "Kütahya - Hisarcık Yenipınar Devlet Avlağı",
+                "Kütahya - Simav Dağı Devlet Avlağı",
+                "Kütahya - Tavşanlı Balıköy Devlet Avlağı"
+            ],
+            "6. Bölge Müdürlüğü (Burdur)": [
+                "Antalya - Bademağacı Devlet Avlağı",
+                "Antalya - Bademli Devlet Avlağı",
+                "Antalya - Belören Devlet Avlağı",
+                "Antalya - Bozkaya Devlet Avlağı",
+                "Antalya - Gazipaşa Karatepe Devlet Avlağı",
+                "Antalya - Geçmen Devlet Avlağı",
+                "Antalya - Gündoğmuş Eskibağ Devlet Avlağı",
+                "Antalya - Kalkan Devlet Avlağı",
+                "Antalya - Katrancı Devlet Avlağı",
+                "Antalya - Kemer Devlet Avlağı",
+                "Antalya - Pancarlı Devlet Avlağı",
+                "Antalya - Tekedağı Devlet Avlağı",
+                "Antalya - Alanya Göksu Genel Avlağı",
+                "Antalya - Manavgat Devlet Avlağı",
+                "Antalya - Yaylaalan Devlet Avlağı",
+                "Isparta - Özgüney Devlet Avlağı",
+                "Isparta - Senirkent Uluborlu Bozdurmuşbeli Devlet Avlağı",
+                "Isparta - Sücüllü Devlet Avlağı",
+                "Isparta - Yazılıkaya Devlet Avlağı"
+            ],
+            "7. Bölge Müdürlüğü (Adana)": [
+                "Adana - Karaisalı Ekecik Devlet Avlağı",
+                "Mersin - Gülnar Azıtepe Devlet Avlağı",
+                "Mersin - Mut Göğden Devlet Avlağı",
+                "Mersin - Silifke Ağıldere Devlet Avlağı",
+                "Mersin - Silifke Cılbayır Devlet Avlağı",
+                "Mersin - Sugözü Devlet Avlağı",
+                "Mersin - Mut Tozlu Genel Avlağı",
+                "Mersin - Aydıncık Batı Devlet Avlağı",
+                "Mersin - Silifke Kırtıl Devlet Avlağı",
+                "Kayseri - Akkuşla Ganişeyh Genel Avlağı",
+                "Kayseri - Bünyan Süksün Genel Avlağı",
+                "Kayseri - Develi Havadan Genel Avlağı",
+                "Kayseri - Develi Şahmelik Genel Avlağı",
+                "Kayseri - Pınarbaşı Gebelek Genel Avlağı",
+                "Kayseri - Pınarbaşı Kuruçay Genel Avlağı",
+                "Kayseri - Pınarbaşı Pazarören Genel Avlağı",
+                "Kayseri - Sarıoğlan Şahruh Genel Avlağı",
+                "Kayseri - Sarız Binboğadağı Genel Avlağı",
+                "Kayseri - Sarız Ördekli Genel Avlağı",
+                "Kayseri - Sarız Tekneli Genel Avlağı",
+                "Kayseri - Tomarza Çanakpınar Genel Avlağı",
+                "Kayseri - Yahyalı Yeşilköy Genel Avlağı",
+                "Niğde - Horoz Devlet Avlağı",
+                "Niğde - Gümüşler Uluağaç Genel Avlağı"
+            ],
+            "8. Bölge Müdürlüğü (Konya)": [
+                "Nevşehir - Acıgöl Karapınar Genel Avlağı",
+                "Nevşehir - Derinkuyu Tilköy Genel Avlağı"
+            ],
+            "9. Bölge Müdürlüğü (Ankara)": [
+                "Ankara - Nallıhan Batı Karageriş Devlet Avlağı",
+                "Ankara - Nallıhan Soğukkuyu Devlet Avlağı",
+                "Ankara - Beypazarı Karabayır Genel Avlağı",
+                "Çankırı - Bayramören Devlet Avlağı",
+                "Çankırı - Çerkeş Güney Devlet Avlağı",
+                "Çankırı - Sarıdağ Devlet Avlağı",
+                "Çankırı - Bapsa Genel Avlağı",
+                "Çankırı - Halaçlı Saraycık Genel Avlağı",
+                "Çankırı - İnandık Akören Genel Avlağı"
+            ],
+            "10. Bölge Müdürlüğü (Sinop)": [
+                "Zonguldak - Buldandere Devlet Avlağı",
+                "Bartın - Çakıllar Devlet Avlağı",
+                "Bartın - Jandarma Mezarlığı Devlet Avlağı",
+                "Karabük - Büyükdüz Devlet Avlağı",
+                "Karabük - Safranbolu Sarıçiçek Devlet Avlağı",
+                "Karabük - Yenice Göktepe Devlet Avlağı",
+                "Karabük - Yenice Pürenkaya Devlet Avlağı",
+                "Karabük - Dikmen Devlet Avlağı",
+                "Karabük - Ovacık Kışla Devlet Avlağı",
+                "Bolu - Mengen Pazarköy Devlet Avlağı",
+                "Bolu - Göynük Ilıca Genel Avlağı"
+            ],
+            "11. Bölge Müdürlüğü (Samsun)": [
+                "Amasya - Aydınca Devlet Avlağı",
+                "Amasya - Boraboy Devlet Avlağı",
+                "Amasya - Destek Devlet Avlağı",
+                "Amasya - Göynücek Devlet Avlağı",
+                "Amasya - Gümüşhacıköy Devlet Avlağı",
+                "Amasya - Kralkaya Devlet Avlağı",
+                "Amasya - Merzifon Devlet Avlağı",
+                "Amasya - Merzifon Sarıçiçek Devlet Avlağı",
+                "Amasya - Merzifon Tavşandağı Devlet Avlağı",
+                "Amasya - Taşova Devlet Avlağı",
+                "Çorum - Ahlatcık Devlet Avlağı",
+                "Çorum - Alaca Çalköy Genel Avlağı",
+                "Çorum - Alaca Höyük Genel Avlağı",
+                "Çorum - Alaca Koçhisar Genel Avlağı",
+                "Çorum - Alaca Suludere Genel Avlağı",
+                "Çorum - Arife Gazili Genel Avlağı",
+                "Çorum - Ayvalıca Devlet Avlağı",
+                "Çorum - Boğazkale Evci Devlet Avlağı",
+                "Çorum - Çorum Acıpınar Genel Avlağı",
+                "Çorum - Çorum Elmalı Genel Avlağı",
+                "Çorum - Çorum Gölköy Devlet Avlağı",
+                "Çorum - Çorum Kargı Erenler Kös Devlet Avlağı",
+                "Çorum - Çorum Kartal Devlet Avlağı",
+                "Çorum - Çorum Koparan Devlet Avlağı",
+                "Çorum - Çorum Sarıkaya Genel Avlağı",
+                "Çorum - Çorum Yenice Devlet Avlağı",
+                "Çorum - Fındıcak Devlet Avlağı",
+                "Çorum - Karacaören Devlet Avlağı",
+                "Çorum - Karahacip Devlet Avlağı",
+                "Çorum - Kargı Günyazı Devlet Avlağı",
+                "Çorum - Karlık Genel Avlağı",
+                "Çorum - Kılıçören Genel Avlağı",
+                "Çorum - Konaklı Genel Avlağı",
+                "Çorum - Kumçelteği Genel Avlağı",
+                "Çorum - Laçin Kırkdilim Devlet Avlağı",
+                "Çorum - Mecitözü Bayındır Devlet Avlağı",
+                "Çorum - Ortaköy Cevizli Devlet Avlağı",
+                "Çorum - Osmancık Ardıç Devlet Avlağı",
+                "Çorum - Osmancık Sütlüce Devlet Avlağı",
+                "Çorum - Osmancık Tekmen Devlet Avlağı",
+                "Çorum - Seydim Devlet Avlağı",
+                "Çorum - Sungurlu İnegazili Genel Avlağı",
+                "Çorum - Sungurlu Kemallı Devlet Avlağı",
+                "Çorum - Sungurlu Yörüklü Genel Avlağı",
+                "Çorum - Uğurludağ Yarımca Genel Avlağı",
+                "Çorum - Yenihayat Devlet Avlağı",
+                "Ordu - Akkuş Göllüce Devlet Avlağı",
+                "Ordu - Aybastı Devlet Avlağı",
+                "Ordu - Çambaşı Devlet Avlağı",
+                "Ordu - Çaybaşı Genel Avlağı",
+                "Ordu - Fatsa Genel Avlağı",
+                "Ordu - Gölköy Devlet Avlağı",
+                "Ordu - Gürgentepe Genel Avlağı",
+                "Ordu - Korgan Kumru Genel Avlağı",
+                "Ordu - Mesudiye Arpalan Devlet Avlağı",
+                "Ordu - Mesudiye Güney Melet Devlet Avlağı",
+                "Ordu - Mesudiye Kuzey Melet Devlet Avlağı",
+                "Ordu - Ordu Genel Avlağı",
+                "Ordu - Perşembe Genel Avlağı",
+                "Ordu - Salman Düzdağ Devlet Avlağı",
+                "Ordu - Sarıçiçek Topçam Devlet Avlağı",
+                "Ordu - Ulubey Devlet Avlağı",
+                "Ordu - Ünye Genel Avlağı",
+                "Samsun - Alaçam Devlet Avlağı",
+                "Samsun - Altınkaya Devlet Avlağı",
+                "Samsun - Asarcık Devlet Avlağı",
+                "Samsun - Atakum Genel Avlağı",
+                "Samsun - Ayvacık Devlet Avlağı",
+                "Samsun - Bafra Genel Avlağı",
+                "Samsun - Bafra Sarıköy Genel Avlağı",
+                "Samsun - Boğaziçi Devlet Avlağı",
+                "Samsun - Çakıralan Devlet Avlağı",
+                "Samsun - Çarşamba Genel Avlağı",
+                "Samsun - Emenli Genel Avlağı",
+                "Samsun - Havza Devlet Avlağı",
+                "Samsun - Karaboğaz Genel Avlağı",
+                "Samsun - Kavak Devlet Avlağı",
+                "Samsun - Ladik Devlet Avlağı",
+                "Samsun - Ladik Gölü Devlet Avlağı",
+                "Samsun - Narlısaray Devlet Avlağı",
+                "Samsun - Salıpazarı Devlet Avlağı",
+                "Samsun - Samsun Genel Avlağı",
+                "Samsun - Sarıçiçek Devlet Avlağı",
+                "Samsun - Tekkeköy Genel Avlağı",
+                "Samsun - Terme Genel Avlağı",
+                "Samsun - Vezirköprü Devlet Avlağı",
+                "Samsun - Yakakent Devlet Avlağı",
+                "Tokat - Almus Çilehane Devlet Avlağı",
+                "Tokat - Almus Devlet Avlağı",
+                "Tokat - Başçiftlik Devlet Avlağı",
+                "Tokat - Erbaa Devlet Avlağı",
+                "Tokat - Erbaa Genel Avlağı",
+                "Tokat - Gaziosmanpaşa Devlet Avlağı",
+                "Tokat - Maden Devlet Avlağı",
+                "Tokat - Manastır Devlet Avlağı",
+                "Tokat - Maşat Höyüğü Genel Avlağı",
+                "Tokat - Merkez Beşören Devlet Avlağı",
+                "Tokat - Merkez Çamlıbel Devlet Avlağı",
+                "Tokat - Merkez Topçam Devlet Avlağı",
+                "Tokat - Niksar Çamiçi Devlet Avlağı",
+                "Tokat - Niksar Hacılı Devlet Avlağı",
+                "Tokat - Pazar Devlet Avlağı",
+                "Tokat - Reşadiye Devlet Avlağı",
+                "Tokat - Sazak Devlet Avlağı",
+                "Tokat - Taşlıçiftlik Devlet Avlağı",
+                "Tokat - Turhal Devlet Avlağı",
+                "Tokat - Turhal Genel Avlağı",
+                "Tokat - Yeşilyurt Devlet Avlağı",
+                "Tokat - Zile Devlet Avlağı",
+                "Tokat - Zile İğdir Devlet Avlağı"
+            ],
+            "12. Bölge Müdürlüğü (Rize)": [
+                "Giresun - Üçköprü Devlet Avlağı",
+                "Gümüşhane - Köse Genel Avlağı",
+                "Artvin - Altıparmak Devlet Avlağı"
+            ],
+            "13. Bölge Müdürlüğü (Erzurum)": [
+                "Erzurum - Çardaklı Devlet Avlağı",
+                "Erzurum - Demirdöven Devlet Avlağı",
+                "Erzurum - Doğanköy Devlet Avlağı",
+                "Erzurum - Erzurum Özdere Devlet Avlağı",
+                "Erzurum - Gökdere Devlet Avlağı",
+                "Erzurum - İkisu Devlet Avlağı",
+                "Erzurum - Kaban Devlet Avlağı",
+                "Erzurum - Uzundere Çamlıyamaç Devlet Avlağı",
+                "Erzurum - Alagöz Genel Avlağı",
+                "Erzurum - Ballıtaş Genel Avlağı",
+                "Erzurum - Çat Genel Avlağı",
+                "Erzurum - Kavaklı Genel Avlağı",
+                "Erzurum - Halilçavuş Genel Avlağı",
+                "Erzurum - Hanbeyi Genel Avlağı",
+                "Erzurum - Hasanova Genel Avlağı",
+                "Erzurum - Taşağıl Genel Avlağı",
+                "Erzurum - Taşkaynak Genel Avlağı",
+                "Erzurum - Yeşilçöl Genel Avlağı",
+                "Erzurum - Yumruveren Genel Avlağı",
+                "Erzincan - Akça Devlet Avlağı",
+                "Erzincan - Cimin Devlet Avlağı",
+                "Erzincan - Çayyaka Devlet Avlağı",
+                "Erzincan - Doğandere Devlet Avlağı",
+                "Erzincan - Dumanlı Devlet Avlağı",
+                "Erzincan - Dutluca Devlet Avlağı",
+                "Erzincan - Kapıkaya Devlet Avlağı",
+                "Erzincan - Kızıldağ Devlet Avlağı",
+                "Erzincan - Orçul Devlet Avlağı",
+                "Erzincan - Abrenk Genel Avlağı",
+                "Erzincan - Bulmuş Genel Avlağı",
+                "Erzincan - Çataksu Genel Avlağı",
+                "Erzincan - Karadağ Genel Avlağı",
+                "Erzincan - Otlukbeli Genel Avlağı",
+                "Erzincan - Yedigöller Genel Avlağı",
+                "Bayburt - Akşar Genel Avlağı",
+                "Bayburt - Sünür Genel Avlağı",
+                "Kars - Parmakdere Yayıklı Devlet Avlağı",
+                "Kars - Camuşlu Genel Avlağı",
+                "Kars - Derecik Genel Avlağı",
+                "Kars - Turnagöl Genel Avlağı",
+                "Ardahan - Senemoğlu Devlet Avlağı",
+                "Bingöl - Ayanoğlu Devlet Avlağı",
+                "Bingöl - Aysaklı Devlet Avlağı",
+                "Bingöl - Çobantaşı Devlet Avlağı",
+                "Bingöl - Uzunsavat Devlet Avlağı",
+                "Bingöl - Yayla Devlet Avlağı",
+                "Ağrı - Abdiköyü Genel Avlağı",
+                "Ağrı - Akyele Genel Avlağı",
+                "Ağrı - Akyumak Genel Avlağı",
+                "Ağrı - Arıdağı Genel Avlağı",
+                "Ağrı - Bozoğlak Genel Avlağı",
+                "Ağrı - Kızkapan Genel Avlağı",
+                "Ağrı - Kurtpınar Dağı Genel Avlağı",
+                "Ağrı - Tendürek Dağı Genel Avlağı"
+            ],
+            "14. Bölge Müdürlüğü (Van)": [
+                "Van - Dağseven Devlet Avlağı",
+                "Van - Narlı Devlet Avlağı",
+                "Van - Abalı Genel Avlağı",
+                "Van - Andiçen Genel Avlağı",
+                "Van - Çakırdoğan Genel Avlağı",
+                "Van - Çamlık Genel Avlağı",
+                "Van - Celebiabığı Genel Avlağı",
+                "Van - Çepkenli Genel Avlağı",
+                "Van - Çubuklu Genel Avlağı",
+                "Van - Daldere Genel Avlağı",
+                "Van - Dolutag Genel Avlağı",
+                "Van - Dorutay Genel Avlağı",
+                "Van - Erçek Genel Avlağı",
+                "Van - Esenyamaç Genel Avlağı",
+                "Van - Gedikbaşı Genel Avlağı",
+                "Van - Güleçler Genel Avlağı",
+                "Van - Kalkanlı Genel Avlağı",
+                "Van - Kapıköy Genel Avlağı",
+                "Van - Kaşkol Genel Avlağı",
+                "Van - Kepir Genel Avlağı",
+                "Van - Kuyucak Genel Avlağı",
+                "Van - Sakızlı Genel Avlağı",
+                "Van - Tokluca Genel Avlağı",
+                "Bitlis - Hizan Devlet Avlağı",
+                "Bitlis - Hizan Kumalan Devlet Avlağı",
+                "Bitlis - Ahlat Genel Avlağı",
+                "Bitlis - Haçukan Genel Avlağı",
+                "Bitlis - Hizan Kolludere Genel Avlağı",
+                "Siirt - Çiraf Devlet Avlağı",
+                "Siirt - Gümüş Devlet Avlağı",
+                "Siirt - İskambo Devlet Avlağı",
+                "Siirt - Kovanağzı Devlet Avlağı",
+                "Siirt - Sarıyaprak Devlet Avlağı",
+                "Siirt - Yelkesen Devlet Avlağı",
+                "Muş - Bulanık Karacaören Genel Avlağı",
+                "Muş - Bulanık Örenkent Genel Avlağı",
+                "Muş - Korkut Altınova Genel Avlağı",
+                "Muş - Malazgirt Karakaya Genel Avlağı",
+                "Muş - Varto Çayçatı Genel Avlağı",
+                "Muş - Varto Hamurpet Genel Avlağı",
+                "Hakkari - Çatalca Devlet Avlağı",
+                "Hakkari - Dağlıca Devlet Avlağı",
+                "Hakkari - Derecik Devlet Avlağı",
+                "Hakkari - Günyazı Devlet Avlağı",
+                "Hakkari - Kayalık Devlet Avlağı",
+                "Hakkari - Konur Devlet Avlağı",
+                "Hakkari - Taşbaşı Devlet Avlağı",
+                "Hakkari - Uzundere Devlet Avlağı",
+                "Hakkari - Gürkavak Genel Avlağı",
+                "Hakkari - Kırıkdag Genel Avlağı",
+                "Hakkari - Oğul Genel Avlağı"
+            ],
+            "15. Bölge Müdürlüğü (Malatya)": [
+                "Malatya - Arapgir Yeşilyayla Devlet Avlağı",
+                "Malatya - Battalgazi Bulutlu Devlet Avlağı",
+                "Malatya - Hekimhan Başak Devlet Avlağı",
+                "Malatya - Hekimhan Yukarıselimli Devlet Avlağı",
+                "Malatya - Kale Bentköy Devlet Avlağı",
+                "Malatya - Pütürge Aktarlı Devlet Avlağı",
+                "Malatya - Akçadağ Ortaköy Genel Avlağı",
+                "Malatya - Arapgir Kayakesen Genel Avlağı",
+                "Malatya - Arguvan Karahüyük Genel Avlağı",
+                "Malatya - Darende Ağılyazı Genel Avlağı",
+                "Malatya - Darende Aşağıulupınar Genel Avlağı",
+                "Malatya - Doğanşehir Fındıkköy Genel Avlağı",
+                "Malatya - Doğanşehir Reşadiye Genel Avlağı",
+                "Malatya - Yeşilyurt Kozluk Genel Avlağı",
+                "Elazığ - Gündoğdu Devlet Avlağı",
+                "Elazığ - Hasbey Devlet Avlağı",
+                "Elazığ - Koçyiğitler Devlet Avlağı",
+                "Elazığ - Alayağmur Genel Avlağı",
+                "Elazığ - Baskil Tavşanuşağı Genel Avlağı",
+                "Elazığ - Sivrice Çatakkaya Genel Avlağı",
+                "Diyarbakır - Çınar Karasungur Devlet Avlağı",
+                "Diyarbakır - Hani Devlet Avlağı",
+                "Diyarbakır - Kulp Akçasır Devlet Avlağı",
+                "Diyarbakır - Lice Yamaçlı Devlet Avlağı",
+                "Diyarbakır - Çüngüş Genel Avlağı",
+                "Diyarbakır - Ergani Kavaklı Genel Avlağı",
+                "Sivas - Cürek Devlet Avlağı",
+                "Sivas - Akkaya Genel Avlağı",
+                "Sivas - Akören Genel Avlağı",
+                "Sivas - Akpınar Genel Avlağı",
+                "Sivas - Beydağı Genel Avlağı",
+                "Sivas - Beydili Genel Avlağı",
+                "Sivas - Beypınarı Genel Avlağı",
+                "Sivas - Boğazköy Genel Avlağı",
+                "Sivas - Çengelli Genel Avlağı",
+                "Sivas - Doğantepe Genel Avlağı",
+                "Sivas - Durdulu Genel Avlağı",
+                "Sivas - Emirhan Genel Avlağı",
+                "Sivas - Eskiboğazkesen Genel Avlağı",
+                "Sivas - Fakılı Genel Avlağı",
+                "Sivas - Gaziköy Genel Avlağı",
+                "Sivas - Göhertaş Genel Avlağı",
+                "Sivas - Güneykaya Genel Avlağı",
+                "Sivas - Handere Genel Avlağı",
+                "Sivas - Höbek Genel Avlağı",
+                "Sivas - Karadoruk Genel Avlağı",
+                "Sivas - Kartalkaya Genel Avlağı",
+                "Sivas - Kelkit Genel Avlağı",
+                "Sivas - Keşişdağı Genel Avlağı",
+                "Sivas - Kurugöl Genel Avlağı",
+                "Sivas - Mursal Genel Avlağı",
+                "Sivas - Ortaköy Genel Avlağı",
+                "Sivas - Sızır Genel Avlağı",
+                "Sivas - Suşehri Genel Avlağı",
+                "Sivas - Şeyhalil Genel Avlağı",
+                "Sivas - Taşlıdere Genel Avlağı",
+                "Sivas - Tödürge Genel Avlağı",
+                "Sivas - Yakayeri Genel Avlağı",
+                "Sivas - Yavu Genel Avlağı",
+                "Sivas - Yellice Genel Avlağı",
+                "Sivas - Yılanlı Genel Avlağı",
+                "Sivas - Yusufoğlan Genel Avlağı",
+                "Tunceli - Akdüven Devlet Avlağı",
+                "Tunceli - Aliboğazı Devlet Avlağı",
+                "Tunceli - Ataçınarı Devlet Avlağı",
+                "Tunceli - Büyükurt Devlet Avlağı",
+                "Tunceli - Derindere Devlet Avlağı",
+                "Tunceli - Doluküp Devlet Avlağı",
+                "Tunceli - Eğripınar Devlet Avlağı",
+                "Tunceli - Erkalkan Devlet Avlağı",
+                "Tunceli - Göktepe Devlet Avlağı",
+                "Tunceli - Gülbahçe Devlet Avlağı",
+                "Tunceli - Hacılı Devlet Avlağı",
+                "Tunceli - Karaçavuş Devlet Avlağı",
+                "Tunceli - Kırklar Dağı Devlet Avlağı",
+                "Tunceli - Kızılkale Devlet Avlağı",
+                "Tunceli - Kocakoç Devlet Avlağı",
+                "Tunceli - Kocatepe Devlet Avlağı",
+                "Tunceli - Sağman Devlet Avlağı",
+                "Tunceli - Sarsaltık Devlet Avlağı",
+                "Tunceli - Süleymanuşağı Devlet Avlağı",
+                "Tunceli - Yalınkaya Devlet Avlağı"
+            ]
+        };
+
+        // ============================================================
+        // TÜRKİYE İL VE İLÇELERİ VERİSİ (Tutanak için)
+        // ============================================================
+        const ilIlceVerisi = {
+            "Adana": ["Aladağ", "Ceyhan", "Çukurova", "Feke", "İmamoğlu", "Karaisalı", "Karataş", "Kozan", "Pozantı", "Saimbeyli", "Sarıçam", "Seyhan", "Tufanbeyli", "Yumurtalık", "Yüreğir"],
+            "Adıyaman": ["Besni", "Çelikhan", "Gerger", "Gölbaşı", "Kahta", "Merkez", "Samsat", "Sincik", "Tut"],
+            "Afyonkarahisar": ["Başmakçı", "Bayat", "Bolvadin", "Çay", "Çobanlar", "Dazkırı", "Dinar", "Emirdağ", "Evciler", "Hocalar", "İhsaniye", "İscehisar", "Kızılören", "Merkez", "Sandıklı", "Sinanpaşa", "Sultandağı", "Şuhut"],
+            "Ağrı": ["Diyadin", "Doğubayazıt", "Eleşkirt", "Hamur", "Merkez", "Patnos", "Taşlıçay", "Tutak"],
+            "Amasya": ["Göynücek", "Gümüşhacıköy", "Hamamözü", "Merkez", "Merzifon", "Suluova", "Taşova"],
+            "Ankara": ["Akyurt", "Altındağ", "Ayaş", "Bala", "Beypazarı", "Çamlıdere", "Çankaya", "Çubuk", "Elmadağ", "Etimesgut", "Evren", "Gölbaşı", "Güdül", "Haymana", "Kahramankazan", "Kalecik", "Keçiören", "Kızılcahamam", "Mamak", "Nallıhan", "Polatlı", "Pursaklar", "Sincan", "Şereflikoçhisar", "Yenimahalle"],
+            "Antalya": ["Akseki", "Aksu", "Alanya", "Demre", "Döşemealtı", "Elmalı", "Finike", "Gazipaşa", "Gündoğmuş", "İbradı", "Kaş", "Kemer", "Kepez", "Konyaaltı", "Korkuteli", "Kumluca", "Manavgat", "Muratpaşa", "Serik"],
+            "Artvin": ["Ardanuç", "Arhavi", "Borçka", "Hopa", "Kemalpaşa", "Merkez", "Murgul", "Şavşat", "Yusufeli"],
+            "Aydın": ["Bozdoğan", "Buharkent", "Çine", "Didim", "Efeler", "Germencik", "İncirliova", "Karacasu", "Karpuzlu", "Koçarlı", "Köşk", "Kuşadası", "Kuyucak", "Nazilli", "Söke", "Sultanhisar", "Yenipazar"],
+            "Balıkesir": ["Altıeylül", "Ayvalık", "Balya", "Bandırma", "Bigadiç", "Burhaniye", "Dursunbey", "Edremit", "Erdek", "Gömeç", "Gönen", "Havran", "İvrindi", "Karesi", "Kepsut", "Manyas", "Marmara", "Savaştepe", "Sındırgı", "Susurluk"],
+            "Bilecik": ["Bozüyük", "Gölpazarı", "İnhisar", "Merkez", "Osmaneli", "Pazaryeri", "Söğüt", "Yenipazar"],
+            "Bingöl": ["Adaklı", "Genç", "Karlıova", "Kiğı", "Merkez", "Solhan", "Yayladere", "Yedisu"],
+            "Bitlis": ["Adilcevaz", "Ahlat", "Güroymak", "Hizan", "Merkez", "Mutki", "Tatvan"],
+            "Bolu": ["Dörtdivan", "Gerede", "Göynük", "Kıbrıscık", "Mengen", "Merkez", "Mudurnu", "Seben", "Yeniçağa"],
+            "Burdur": ["Ağlasun", "Altınyayla", "Bucak", "Çavdır", "Çeltikçi", "Gölhisar", "Karamanlı", "Kemer", "Merkez", "Tefenni", "Yeşilova"],
+            "Bursa": ["Büyükorhan", "Gemlik", "Gürsu", "Harmancık", "İnegöl", "İznik", "Karacabey", "Keles", "Kestel", "Mudanya", "Mustafakemalpaşa", "Nilüfer", "Orhaneli", "Orhangazi", "Osmangazi", "Yenişehir", "Yıldırım"],
+            "Çanakkale": ["Ayvacık", "Bayramiç", "Biga", "Bozcaada", "Çan", "Eceabat", "Ezine", "Gelibolu", "Gökçeada", "Lapseki", "Merkez", "Yenice"],
+            "Çankırı": ["Atkaracalar", "Bayramören", "Çerkeş", "Eldivan", "Ilgaz", "Kızılırmak", "Korgun", "Kurşunlu", "Merkez", "Orta", "Şabanözü", "Yapraklı"],
+            "Çorum": ["Alaca", "Bayat", "Boğazkale", "Dodurga", "İskilip", "Kargı", "Laçin", "Mecitözü", "Merkez", "Oğuzlar", "Ortaköy", "Osmancık", "Sungurlu", "Uğurludağ"],
+            "Denizli": ["Acıpayam", "Babadağ", "Baklan", "Bekilli", "Beyağaç", "Bozkurt", "Buldan", "Çal", "Çameli", "Çardak", "Çivril", "Güney", "Honaz", "Kale", "Merkezefendi", "Pamukkale", "Sarayköy", "Serinhisar", "Tavas"],
+            "Diyarbakır": ["Bağlar", "Bismil", "Çermik", "Çınar", "Çüngüş", "Dicle", "Eğil", "Ergani", "Hani", "Hazro", "Kayapınar", "Kocaköy", "Kulp", "Lice", "Silvan", "Sur", "Yenişehir"],
+            "Edirne": ["Enez", "Havsa", "İpsala", "Keşan", "Lalapaşa", "Meriç", "Merkez", "Süloğlu", "Uzunköprü"],
+            "Elazığ": ["Ağın", "Alacakaya", "Arıcak", "Baskil", "Karakoçan", "Keban", "Kovancılar", "Maden", "Merkez", "Palu", "Sivrice"],
+            "Erzincan": ["Çayırlı", "İliç", "Kemah", "Kemaliye", "Merkez", "Otlukbeli", "Refahiye", "Tercan", "Üzümlü"],
+            "Erzurum": ["Aşkale", "Aziziye", "Çat", "Hınıs", "Horasan", "İspir", "Karaçoban", "Karayazı", "Köprüköy", "Narman", "Oltu", "Olur", "Palandöken", "Pasinler", "Pazaryolu", "Şenkaya", "Tekman", "Tortum", "Uzundere", "Yakutiye"],
+            "Eskişehir": ["Alpu", "Beylikova", "Çifteler", "Günyüzü", "Han", "İnönü", "Mahmudiye", "Mihalgazi", "Mihalıççık", "Odunpazarı", "Sarıcakaya", "Seyitgazi", "Sivrihisar", "Tepebaşı"],
+            "Gaziantep": ["Araban", "İslahiye", "Karkamış", "Nizip", "Nurdağı", "Oğuzeli", "Şahinbey", "Şehitkamil", "Yavuzeli"],
+            "Giresun": ["Alucra", "Bulancak", "Çamoluk", "Çanakçı", "Dereli", "Doğankent", "Espiye", "Eynesil", "Görele", "Güce", "Keşap", "Merkez", "Piraziz", "Şebinkarahisar", "Tirebolu", "Yağlıdere"],
+            "Gümüşhane": ["Kelkit", "Köse", "Kürtün", "Merkez", "Şiran", "Torul"],
+            "Hakkari": ["Çukurca", "Derecik", "Merkez", "Şemdinli", "Yüksekova"],
+            "Hatay": ["Altınözü", "Antakya", "Arsuz", "Belen", "Defne", "Dörtyol", "Erzin", "Hassa", "İskenderun", "Kırıkhan", "Kumlu", "Payas", "Reyhanlı", "Samandağ", "Yayladağı"],
+            "Isparta": ["Aksu", "Atabey", "Eğirdir", "Gelendost", "Gönen", "Keçiborlu", "Merkez", "Senirkent", "Sütçüler", "Şarkikaraağaç", "Uluborlu", "Yalvaç", "Yenişarbademli"],
+            "Mersin": ["Akdeniz", "Anamur", "Aydıncık", "Bozyazı", "Çamlıyayla", "Erdemli", "Gülnar", "Mezitli", "Mut", "Silifke", "Tarsus", "Toroslar", "Yenişehir"],
+            "İstanbul": ["Adalar", "Arnavutköy", "Ataşehir", "Avcılar", "Bağcılar", "Bahçelievler", "Bakırköy", "Başakşehir", "Bayrampaşa", "Beşiktaş", "Beykoz", "Beylikdüzü", "Beyoğlu", "Büyükçekmece", "Çatalca", "Çekmeköy", "Esenler", "Esenyurt", "Eyüpsultan", "Fatih", "Gaziosmanpaşa", "Güngören", "Kadıköy", "Kağıthane", "Kartal", "Küçükçekmece", "Maltepe", "Pendik", "Sancaktepe", "Sarıyer", "Silivri", "Sultanbeyli", "Sultangazi", "Şile", "Şişli", "Tuzla", "Ümraniye", "Üsküdar", "Zeytinburnu"],
+            "İzmir": ["Aliağa", "Balçova", "Bayındır", "Bayraklı", "Bergama", "Beydağ", "Bornova", "Buca", "Çeşme", "Çiğli", "Dikili", "Foça", "Gaziemir", "Güzelbahçe", "Karabağlar", "Karaburun", "Karşıyaka", "Kemalpaşa", "Kınık", "Kiraz", "Konak", "Menderes", "Menemen", "Narlıdere", "Ödemiş", "Seferihisar", "Selçuk", "Tire", "Torbalı", "Urla"],
+            "Kars": ["Akyaka", "Arpaçay", "Digor", "Kağızman", "Merkez", "Sarıkamış", "Selim", "Susuz"],
+            "Kastamonu": ["Abana", "Ağlı", "Araç", "Azdavay", "Bozkurt", "Cide", "Çatalzeytin", "Daday", "Devrekani", "Doğanyurt", "Hanönü", "İhsangazi", "İnebolu", "Küre", "Merkez", "Pınarbaşı", "Seydiler", "Şenpazar", "Taşköprü", "Tosya"],
+            "Kayseri": ["Akkışla", "Bünyan", "Develi", "Felahiye", "Hacılar", "İncesu", "Kocasinan", "Melikgazi", "Özvatan", "Pınarbaşı", "Sarıoğlan", "Sarız", "Talas", "Tomarza", "Yahyalı", "Yeşilhisar"],
+            "Kırklareli": ["Babaeski", "Demirköy", "Kofçaz", "Lüleburgaz", "Merkez", "Pehlivanköy", "Pınarhisar", "Vize"],
+            "Kırşehir": ["Akçakent", "Akpınar", "Boztepe", "Çiçekdağı", "Kaman", "Merkez", "Mucur"],
+            "Kocaeli": ["Başiskele", "Çayırova", "Darıca", "Derince", "Dilovası", "Gebze", "Gölcük", "İzmit", "Kandıra", "Karamürsel", "Kartepe", "Körfez"],
+            "Konya": ["Ahırlı", "Akören", "Akşehir", "Altınekin", "Beyşehir", "Bozkır", "Cihanbeyli", "Çeltik", "Çumra", "Derbent", "Derebucak", "Doğanhisar", "Emirgazi", "Ereğli", "Güneysınır", "Hadim", "Halkapınar", "Hüyük", "Ilgın", "Kadınhanı", "Karapınar", "Karatay", "Kulu", "Meram", "Sarayönü", "Selçuklu", "Seydişehir", "Taşkent", "Tuzlukçu", "Yalıhüyük", "Yunak"],
+            "Kütahya": ["Altıntaş", "Aslanapa", "Çavdarhisar", "Domaniç", "Dumlupınar", "Emet", "Gediz", "Hisarcık", "Merkez", "Pazarlar", "Şaphane", "Simav", "Tavşanlı"],
+            "Malatya": ["Akçadağ", "Arapgir", "Arguvan", "Battalgazi", "Darende", "Doğanşehir", "Doğanyol", "Hekimhan", "Kale", "Kuluncak", "Pütürge", "Yazıhan", "Yeşilyurt"],
+            "Manisa": ["Ahmetli", "Akhisar", "Alaşehir", "Demirci", "Gölmarmara", "Gördes", "Kırkağaç", "Köprübaşı", "Kula", "Salihli", "Sarıgöl", "Saruhanlı", "Selendi", "Soma", "Şehzadeler", "Turgutlu", "Yunusemre"],
+            "Kahramanmaraş": ["Afşin", "Andırın", "Çağlayancerit", "Dulkadiroğlu", "Ekinözü", "Elbistan", "Göksun", "Nurhak", "Onikişubat", "Pazarcık", "Türkoğlu"],
+            "Mardin": ["Artuklu", "Dargeçit", "Derik", "Kızıltepe", "Mazıdağı", "Midyat", "Nusaybin", "Ömerli", "Savur", "Yeşilli"],
+            "Muğla": ["Bodrum", "Dalaman", "Datça", "Fethiye", "Kavaklıdere", "Köyceğiz", "Marmaris", "Menteşe", "Milas", "Ortaca", "Seydikemer", "Ula", "Yatağan"],
+            "Muş": ["Bulanık", "Hasköy", "Korkut", "Malazgirt", "Merkez", "Varto"],
+            "Nevşehir": ["Acıgöl", "Avanos", "Derinkuyu", "Gülşehir", "Hacıbektaş", "Kozaklı", "Merkez", "Ürgüp"],
+            "Niğde": ["Altunhisar", "Bor", "Çamardı", "Çiftlik", "Merkez", "Ulukışla"],
+            "Ordu": ["Akkuş", "Altınordu", "Aybastı", "Çamaş", "Çatalpınar", "Çaybaşı", "Fatsa", "Gölköy", "Gülyalı", "Gürgentepe", "İkizce", "Kabadüz", "Kabataş", "Korgan", "Kumru", "Mesudiye", "Perşembe", "Ulubey", "Ünye"],
+            "Rize": ["Ardeşen", "Çamlıhemşin", "Çayeli", "Derepazarı", "Fındıklı", "Güneysu", "Hemşin", "İkizdere", "İyidere", "Kalkandere", "Merkez", "Pazar"],
+            "Sakarya": ["Adapazarı", "Akyazı", "Arifiye", "Erenler", "Ferizli", "Geyve", "Hendek", "Karapürçek", "Karasu", "Kaynarca", "Kocaali", "Pamukova", "Sapanca", "Serdivan", "Söğütlü", "Taraklı"],
+            "Samsun": ["19 Mayıs", "Alaçam", "Asarcık", "Atakum", "Ayvacık", "Bafra", "Canik", "Çarşamba", "Havza", "İlkadım", "Kavak", "Ladik", "Salıpazarı", "Tekkeköy", "Terme", "Vezirköprü", "Yakakent"],
+            "Siirt": ["Baykan", "Eruh", "Kurtalan", "Merkez", "Pervari", "Şirvan", "Tillo"],
+            "Sinop": ["Ayancık", "Boyabat", "Dikmen", "Durağan", "Erfelek", "Gerze", "Merkez", "Saraydüzü", "Türkeli"],
+            "Sivas": ["Akıncılar", "Altınyayla", "Divriği", "Doğanşar", "Gemerek", "Gölova", "Gürün", "Hafik", "İmranlı", "Kangal", "Koyulhisar", "Merkez", "Suşehri", "Şarkışla", "Ulaş", "Yıldızeli", "Zara"],
+            "Tekirdağ": ["Çerkezköy", "Çorlu", "Ergene", "Hayrabolu", "Kapaklı", "Malkara", "Marmaraereğlisi", "Muratlı", "Saray", "Süleymanpaşa", "Şarköy"],
+            "Tokat": ["Almus", "Artova", "Başçiftlik", "Erbaa", "Merkez", "Niksar", "Pazar", "Reşadiye", "Sulusaray", "Turhal", "Yeşilyurt", "Zile"],
+            "Trabzon": ["Akçaabat", "Araklı", "Arsin", "Beşikdüzü", "Çarşıbaşı", "Çaykara", "Dernekpazarı", "Düzköy", "Hayrat", "Köprübaşı", "Maçka", "Of", "Ortahisar", "Sürmene", "Şalpazarı", "Tonya", "Vakfıkebir", "Yomra"],
+            "Tunceli": ["Çemişgezek", "Hozat", "Mazgirt", "Merkez", "Nazımiye", "Ovacık", "Pertek", "Pülümür"],
+            "Şanlıurfa": ["Akçakale", "Birecik", "Bozova", "Ceylanpınar", "Eyyübiye", "Halfeti", "Haliliye", "Harran", "Hilvan", "Karaköprü", "Siverek", "Suruç", "Viranşehir"],
+            "Uşak": ["Banaz", "Eşme", "Karahallı", "Merkez", "Sivaslı", "Ulubey"],
+            "Van": ["Bahçesaray", "Başkale", "Çaldıran", "Çatak", "Edremit", "Erciş", "Gevaş", "Gürpınar", "İpekyolu", "Muradiye", "Özalp", "Saray", "Tuşba"],
+            "Yozgat": ["Akdağmadeni", "Aydıncık", "Boğazlıyan", "Çandır", "Çayıralan", "Çekerek", "Kadışehri", "Merkez", "Saraykent", "Sarıkaya", "Sorgun", "Şefaatli", "Yenifakılı", "Yerköy"],
+            "Zonguldak": ["Alaplı", "Çaycuma", "Devrek", "Ereğli", "Gökçebey", "Kilimli", "Kozlu", "Merkez"],
+            "Aksaray": ["Ağaçören", "Eskil", "Gülağaç", "Güzelyurt", "Merkez", "Ortaköy", "Sarıyahşi", "Sultanhanı"],
+            "Bayburt": ["Aydıntepe", "Demirözü", "Merkez"],
+            "Karaman": ["Ayrancı", "Başyayla", "Ermenek", "Kazımkarabekir", "Merkez", "Sarıveliler"],
+            "Kırıkkale": ["Bahşılı", "Balışeyh", "Çelebi", "Delice", "Karakeçili", "Keskin", "Merkez", "Sulakyurt", "Yahşihan"],
+            "Batman": ["Beşiri", "Gercüş", "Hasankeyf", "Kozluk", "Merkez", "Sason"],
+            "Şırnak": ["Beytüşşebap", "Cizre", "Güçlükonak", "İdil", "Merkez", "Silopi", "Uludere"],
+            "Bartın": ["Amasra", "Kurucaşile", "Merkez", "Ulus"],
+            "Ardahan": ["Çıldır", "Damal", "Göle", "Hanak", "Merkez", "Posof"],
+            "Iğdır": ["Aralık", "Karakoyunlu", "Merkez", "Tuzluca"],
+            "Yalova": ["Altınova", "Armutlu", "Çınarcık", "Çiftlikköy", "Merkez", "Termal"],
+            "Karabük": ["Eflani", "Eskipazar", "Merkez", "Ovacık", "Safranbolu", "Yenice"],
+            "Kilis": ["Elbeyli", "Merkez", "Musabeyli", "Polateli"],
+            "Osmaniye": ["Bahçe", "Düziçi", "Hasanbeyli", "Kadirli", "Merkez", "Sumbas", "Toprakkale"],
+            "Düzce": ["Akçakoca", "Cumayeri", "Çilimli", "Gölyaka", "Gümüşova", "Kaynaşlı", "Merkez", "Yığılca"]
+        };
+
+        // İDARİ CEZA VE TAZMİNAT VERİLERİ
+        const cezaVerisi = [
+            { id: "4.1.3", madde: "4.1.3", tanim: "Koruma altındaki yaban hayvanlarının avlanması", tutar: 5943 },
+            { id: "4.1.4.1", madde: "4.1.4.1", tanim: "Üreme, tüy değiştirme ve göç dönemlerinde rahatsız edilmesi", tutar: 5943 },
+            { id: "4.1.4.2", madde: "4.1.4.2", tanim: "Yavru ve yumurtalarının toplanması", tutar: 5943 },
+            { id: "4.1.4.3", madde: "4.1.4.3", tanim: "Yuvalarının dağıtılması", tutar: 5943 },
+            { id: "4.1.4.4", madde: "4.1.4.4", tanim: "Memelilerin kış uykusunda rahatsız edilmesi", tutar: 5943 },
+            { id: "4.1.5", madde: "4.1.5", tanim: "Zararlılarla mücadele ve geçici avlanma esaslarına uyulmaması", tutar: 5943 },
+            { id: "4.2", madde: "4.2", tanim: "Yasaklanan gün ve sürelerde koruma altında olmayan yaban hayvanlarının avlanması", tutar: 5943 },
+            { id: "4.6", madde: "4.6", tanim: "Koruma sahalarındaki ağaçların kesilmesi, sahaların işgal edilmesi", tutar: 5943 },
+            { id: "5.1-5.2.1", madde: "5.1-5.2.1", tanim: "Avlanma süreleri dışında avlanma", tutar: 5943 },
+            { id: "5.1-5.2.2", madde: "5.1-5.2.2", tanim: "Avlanma miktarları dışında avlanma", tutar: 5943 },
+            { id: "12.3", madde: "12.3", tanim: "Bakanlıkça ava kapatılması yasağına uymama", tutar: 5943 },
+            { id: "11", madde: "11", tanim: "Özel avlakların kuruluş amaçları dışında işletilmesi", tutar: 36211 },
+            { id: "12", madde: "12", tanim: "Avlaklarda izin almadan avlanma", tutar: 5000 },
+            { id: "12.2.a", madde: "12.2", tanim: "MAK Komisyonunca avlanmaya yasaklanan avlaklarda avlanma", tutar: 10000 },
+            { id: "12.2.b", madde: "12.2", tanim: "Özel kanunlarla avlanmanın yasaklandığı sahalarda avlanmak", tutar: 15000 },
+            { id: "6.2.2", madde: "6.2.2", tanim: "Sınırlandırılmamış tüfeklerle, havalı tüfek ve tabancayla avlanmak", tutar: 4392 },
+            { id: "6.2.3.1", madde: "6.2.3.1", tanim: "Kara, hava ve yüzer araçlarla avlanmak", tutar: 4392 },
+            { id: "6.2.3.2", madde: "6.2.3.2", tanim: "Ses, manyetik dalga, ışık yayan araçlarla avlanmak", tutar: 4392 },
+            { id: "6.2.3.3", madde: "6.2.3.3", tanim: "Canlı mühre ile avlanmak", tutar: 4392 },
+            { id: "6.2.3.4", madde: "6.2.3.4", tanim: "Tuzak, kapan vb araçlarla avlanmak", tutar: 4392 },
+            { id: "6.2.3.5", madde: "6.2.3.5", tanim: "Diğer araç, gereç ve usullerle avlanmak", tutar: 4392 },
+            { id: "6.2.4", madde: "6.2.4", tanim: "Yasaklı cihaz/tuzakları bulundurma ve satış yasağına uymama", tutar: 4392 },
+            { id: "6.2.5", madde: "6.2.5", tanim: "Özellikleri belirlenenlerin dışında güme kurulması ve avlanılması", tutar: 4392 },
+            { id: "6.3", madde: "6.3", tanim: "Avlanan hayvanların taşınması, silah taşıma, köpek bulundurma", tutar: 4392 },
+            { id: "14.2.1", madde: "14.2.1", tanim: "Avlaklarda, avcılık belgesi olmadan avlanmak", tutar: 10000 },
+            { id: "14.2.2", madde: "14.2.2", tanim: "Avlaklarda, avlanma izni olmadan avlanmak", tutar: 5000 },
+            { id: "24.5", madde: "24.5", tanim: "Belgeleri yanında bulundurmadan avlanmak", tutar: 481 },
+            { id: "13.5", madde: "13.5", tanim: "Yabancı avcılık belgesi almadan avlanmak", tutar: 30138 },
+            { id: "15.1.1", madde: "15.1.1", tanim: "İzinsiz av turu, fotoğraf/film çekimi yaptırmak", tutar: 302484 },
+            { id: "15.1.2", madde: "15.1.2", tanim: "Geçici avcılık belgesinde kayıtlı türler dışında avlanma", tutar: 151192 },
+            { id: "18.1", madde: "18.1", tanim: "Yasaklı türleri satmak, nakletmek (Üst sınır)", tutar: 75528 },
+            { id: "18.2", madde: "18.2", tanim: "Ticaretini denetlemeye ilişkin usul ve esaslara uymama (Üst sınır)", tutar: 75528 },
+            { id: "19", madde: "19", tanim: "İzinsiz üretim, doğaya salma, yabancı tür ithalatı (Üst sınır)", tutar: 75528 },
+            { id: "18.3", madde: "18.3", tanim: "İzinsiz yaban hayvanlarını satmak", tutar: 90669 }
+        ];
+
+        const tazminatVerisi = [
+            { id: "t1", tur: "Anadolu Parsı", bedel: 60000000 },
+            { id: "t2", tur: "Çizgili Sırtlan", bedel: 5000000 },
+            { id: "t3", tur: "Karakulak", bedel: 1100000 },
+            { id: "t4", tur: "Vaşak", bedel: 1100000 },
+            { id: "t5", tur: "Yaban Kedisi", bedel: 370000 },
+            { id: "t6", tur: "Saz Kedisi", bedel: 370000 },
+            { id: "t7", tur: "Akdeniz Foku", bedel: 160000 },
+            { id: "t8", tur: "Su Samuru", bedel: 130000 },
+            { id: "t9", tur: "Alacansansar", bedel: 46000 },
+            { id: "t10", tur: "Oklu Kirpi", bedel: 46000 },
+            { id: "t11", tur: "Sincaplar familyasındaki bütün türler", bedel: 20000 },
+            { id: "t12", tur: "Doğu Yaban Koyunu", bedel: 11000000 },
+            { id: "t13", tur: "Anadolu Yaban Koyunu", bedel: 11000000 },
+            { id: "t14", tur: "Yaban Keçisi", bedel: 1250000 },
+            { id: "t15", tur: "Çengelboynuzlu Dağkeçisi", bedel: 1250000 },
+            { id: "t16", tur: "Alageyik", bedel: 950000 },
+            { id: "t17", tur: "Kızıl Geyik", bedel: 750000 },
+            { id: "t18", tur: "Kum Ceylanı (Urfa Ceylanı)", bedel: 280000 },
+            { id: "t19", tur: "Hatay Dağceylanı", bedel: 280000 },
+            { id: "t20", tur: "Boz Ayı", bedel: 140000 },
+            { id: "t21", tur: "Kurt", bedel: 65000 },
+            { id: "t22", tur: "Karaca", bedel: 60000 },
+            { id: "t23", tur: "Ada Tavşanı", bedel: 6500 },
+            { id: "t24", tur: "Yaban Tavşanı", bedel: 6000 },
+            { id: "t25", tur: "Çakal", bedel: 5000 },
+            { id: "t26", tur: "Tilki", bedel: 5000 },
+            { id: "t27", tur: "Yaban Domuzu", bedel: 5000 },
+            { id: "t28", tur: "Gelincik", bedel: 5000 },
+            { id: "t29", tur: "Kokarca", bedel: 5000 },
+            { id: "t30", tur: "Kayasansarı", bedel: 5000 },
+            { id: "t31", tur: "Porsuk", bedel: 5000 },
+            { id: "t32", tur: "Kuyruksüren", bedel: 5000 },
+            { id: "t33", tur: "Rakun Köpeği", bedel: 5000 },
+            { id: "t34", tur: "Sumaymunu", bedel: 5000 },
+            { id: "t35", tur: "Listede yer almayan memeli türler", bedel: 4000 },
+            { id: "t36", tur: "Atmacagiller familyasındaki türler", bedel: 190000 },
+            { id: "t37", tur: "Doğangiller familyasındaki türler", bedel: 190000 },
+            { id: "t38", tur: "Kelaynak", bedel: 160000 },
+            { id: "t39", tur: "Çeltikçi", bedel: 160000 },
+            { id: "t40", tur: "Kaşıkçı", bedel: 160000 },
+            { id: "t41", tur: "İnceagalı Kervançulluğu", bedel: 160000 },
+            { id: "t42", tur: "Tepeli Pelikan", bedel: 130000 },
+            { id: "t43", tur: "Mezgeldek", bedel: 130000 },
+            { id: "t44", tur: "Orman Horozu", bedel: 120000 },
+            { id: "t45", tur: "Dağ Horozu", bedel: 120000 },
+            { id: "t46", tur: "Toy", bedel: 120000 },
+            { id: "t47", tur: "Yakalı Toy", bedel: 120000 },
+            { id: "t48", tur: "Urkeklik", bedel: 95000 },
+            { id: "t49", tur: "Turnagiller familyasındaki türler", bedel: 95000 },
+            { id: "t50", tur: "Ak Pelikan", bedel: 80000 },
+            { id: "t51", tur: "Flamingo", bedel: 80000 },
+            { id: "t52", tur: "Sessiz Kuğu", bedel: 80000 },
+            { id: "t53", tur: "Küçük Kuğu", bedel: 80000 },
+            { id: "t54", tur: "Ötücü Kuğu", bedel: 80000 },
+            { id: "t55", tur: "Leylekgiller diğer türler", bedel: 80000 },
+            { id: "t56", tur: "Peçeli Baykuşgiller türleri", bedel: 40000 },
+            { id: "t57", tur: "Baykuşgiller diğer türler", bedel: 40000 },
+            { id: "t58", tur: "Dikkuyruk", bedel: 16000 },
+            { id: "t59", tur: "Pasbaş Patka", bedel: 16000 },
+            { id: "t60", tur: "Yaz Ördeği", bedel: 16000 },
+            { id: "t61", tur: "Sibirya Kazı", bedel: 16000 },
+            { id: "t62", tur: "Bıldırcın Kılavuzu", bedel: 16000 },
+            { id: "t63", tur: "Küçük Karabatak", bedel: 9400 },
+            { id: "t64", tur: "Tepeli Karabatak", bedel: 9400 },
+            { id: "t65", tur: "Küçük Sakarca", bedel: 9400 },
+            { id: "t66", tur: "Turaç", bedel: 9400 },
+            { id: "t67", tur: "Saka", bedel: 9400 },
+            { id: "t68", tur: "Küçük Suçulluğu", bedel: 7600 },
+            { id: "t69", tur: "Balıkçıgiller diğer türler", bedel: 7600 },
+            { id: "t70", tur: "Tundra Kazı", bedel: 7600 },
+            { id: "t71", tur: "Akyanaklı Kaz", bedel: 7600 },
+            { id: "t72", tur: "Yosun Kazı", bedel: 7600 },
+            { id: "t73", tur: "Angıt", bedel: 7600 },
+            { id: "t74", tur: "Suna", bedel: 7600 },
+            { id: "t75", tur: "Karabaş Patka", bedel: 7600 },
+            { id: "t76", tur: "Pufla", bedel: 7600 },
+            { id: "t77", tur: "Telkuyruk", bedel: 7600 },
+            { id: "t78", tur: "Kara Ördek", bedel: 7600 },
+            { id: "t79", tur: "Kadife Ördek", bedel: 7600 },
+            { id: "t80", tur: "Altıngöz", bedel: 7600 },
+            { id: "t81", tur: "Sütlabi", bedel: 7600 },
+            { id: "t82", tur: "Göknar Kargası", bedel: 6000 },
+            { id: "t83", tur: "Sarıgagalı Dağ Kargası", bedel: 6000 },
+            { id: "t84", tur: "Kırmızıgagalı Dağ Kargası", bedel: 6000 },
+            { id: "t85", tur: "Çöl Kuzgunu", bedel: 6000 },
+            { id: "t86", tur: "Kısakuyruklu Kuzgun", bedel: 6000 },
+            { id: "t87", tur: "Çil Keklik", bedel: 6000 },
+            { id: "t88", tur: "Elmabaş Patka", bedel: 6000 },
+            { id: "t89", tur: "Üveyik", bedel: 6000 },
+            { id: "t90", tur: "Çulluk", bedel: 6000 },
+            { id: "t91", tur: "Sakarca", bedel: 6000 },
+            { id: "t92", tur: "Kınalı Keklik", bedel: 5200 },
+            { id: "t93", tur: "Kum Kekliği", bedel: 5200 },
+            { id: "t94", tur: "Karatavuk", bedel: 5200 },
+            { id: "t95", tur: "Öter Ardıç", bedel: 5200 },
+            { id: "t96", tur: "Tahtalı", bedel: 5200 },
+            { id: "t97", tur: "Suçulluğu", bedel: 5200 },
+            { id: "t98", tur: "Tayga Kazı", bedel: 5200 },
+            { id: "t99", tur: "Küçük Tarla Kazı", bedel: 5200 },
+            { id: "t100", tur: "Boz Kaz", bedel: 5200 },
+            { id: "t101", tur: "Nil Kazı", bedel: 5200 },
+            { id: "t102", tur: "Boz Ördek", bedel: 5200 },
+            { id: "t103", tur: "Çamurcun", bedel: 5200 },
+            { id: "t104", tur: "Yeşilbaş", bedel: 5200 },
+            { id: "t105", tur: "Kılıkuyruk", bedel: 5200 },
+            { id: "t106", tur: "Çıkrıkçın", bedel: 5200 },
+            { id: "t107", tur: "Kaşıkgaga", bedel: 5200 },
+            { id: "t108", tur: "Macar Ördeği", bedel: 5200 },
+            { id: "t109", tur: "Tepeli Patka", bedel: 5200 },
+            { id: "t110", tur: "Tarakdış", bedel: 5200 },
+            { id: "t111", tur: "Büyük Tarakdış", bedel: 5200 },
+            { id: "t112", tur: "Fiyu", bedel: 5200 },
+            { id: "t113", tur: "Kaya Güvercini", bedel: 4700 },
+            { id: "t114", tur: "Sakarmeke", bedel: 4700 },
+            { id: "t115", tur: "Bıldırcın", bedel: 4700 },
+            { id: "t116", tur: "Serçe", bedel: 4700 },
+            { id: "t117", tur: "Kızılsırtlı Örümcekkuşu", bedel: 4700 },
+            { id: "t118", tur: "Alakarga", bedel: 2900 },
+            { id: "t119", tur: "Karabatak", bedel: 2900 },
+            { id: "t120", tur: "Saksağan", bedel: 2900 },
+            { id: "t121", tur: "Küçükkarga", bedel: 2900 },
+            { id: "t122", tur: "Ekin Kargası", bedel: 2900 },
+            { id: "t123", tur: "Leş Kargası", bedel: 2900 },
+            { id: "t124", tur: "Canlı mühre Yaban Ördekleri", bedel: 20000 },
+            { id: "t125", tur: "Canlı mühre Kazlar", bedel: 20000 },
+            { id: "t126", tur: "Canlı mühre Güvercinler", bedel: 20000 },
+            { id: "t127", tur: "Canlı mühre Keklikler", bedel: 20000 },
+            { id: "t128", tur: "Canlı mühre Saka", bedel: 20000 },
+            { id: "t129", tur: "Sülün", bedel: 6000 },
+            { id: "t130", tur: "Çöl Toygarı", bedel: 6000 },
+            { id: "t131", tur: "Yeşil Papağan", bedel: 6000 },
+            { id: "t132", tur: "İskender Papağan", bedel: 6000 },
+            { id: "t133", tur: "Kuzgun", bedel: 6000 },
+            { id: "t134", tur: "Gri Balıkçıl", bedel: 6000 },
+            { id: "t135", tur: "Ağaç Serçesi", bedel: 4700 },
+            { id: "t136", tur: "Akkuyruklu Kızkuşu", bedel: 4700 },
+            { id: "t137", tur: "Alamecek", bedel: 4700 },
+            { id: "t138", tur: "Altın Yağmurcun", bedel: 4700 },
+            { id: "t139", tur: "Bağırtlak", bedel: 4700 },
+            { id: "t140", tur: "Boz Alamecek", bedel: 4700 },
+            { id: "t141", tur: "Büyük Karabaş Martı", bedel: 4700 },
+            { id: "t142", tur: "Büyük Karasırtlı Martı", bedel: 4700 },
+            { id: "t143", tur: "Büyük Kızkuşu", bedel: 4700 },
+            { id: "t144", tur: "Büyük Kumkuşu", bedel: 4700 },
+            { id: "t145", tur: "Çamurçulluğu", bedel: 4700 },
+            { id: "t146", tur: "Çiğdeci", bedel: 4700 },
+            { id: "t147", tur: "Çöl Kuyrukkakanı", bedel: 4700 },
+            { id: "t148", tur: "Dağ İspinozu", bedel: 4700 },
+            { id: "t149", tur: "Doğu Alameceği", bedel: 4700 },
+            { id: "t150", tur: "Doğu Kirazkuşu", bedel: 4700 },
+            { id: "t151", tur: "Döğüşkenkuş", bedel: 4700 },
+            { id: "t152", tur: "Duvar Tırmaşıkkuşu", bedel: 4700 },
+            { id: "t153", tur: "Gökçe Güvercin", bedel: 4700 },
+            { id: "t154", tur: "Gümüş Martı", bedel: 4700 },
+            { id: "t155", tur: "Gümüş Yağmurcun", bedel: 4700 },
+            { id: "t156", tur: "Hazar Martısı", bedel: 4700 },
+            { id: "t157", tur: "İspinoz", bedel: 4700 },
+            { id: "t158", tur: "Karaayaklı Martı", bedel: 4700 },
+            { id: "t159", tur: "Karabaş Martı", bedel: 4700 },
+            { id: "t160", tur: "Kara Kızılbacak", bedel: 4700 },
+            { id: "t161", tur: "Karasırtlı Kuyrukkakan", bedel: 4700 },
+            { id: "t162", tur: "Karasırtlı Martı", bedel: 4700 },
+            { id: "t163", tur: "Kervançulluğu", bedel: 4700 },
+            { id: "t164", tur: "Kılıkuyruk Bağırtlak", bedel: 4700 },
+            { id: "t165", tur: "Kızıl Ardıç", bedel: 4700 },
+            { id: "t166", tur: "Kızılbacak", bedel: 4700 },
+            { id: "t167", tur: "Kızılbaşlı Çinte", bedel: 4700 },
+            { id: "t168", tur: "Kızkuşu", bedel: 4700 },
+            { id: "t169", tur: "Kirazkuşu", bedel: 4700 },
+            { id: "t170", tur: "Korsanmartiğiller", bedel: 4700 },
+            { id: "t171", tur: "Kumru", bedel: 4700 },
+            { id: "t172", tur: "Küçük Gümüş Martı", bedel: 4700 },
+            { id: "t173", tur: "Küçük Kumru", bedel: 4700 },
+            { id: "t174", tur: "Küçük Serçe", bedel: 4700 },
+            { id: "t175", tur: "Orman Toygarı", bedel: 4700 },
+            { id: "t176", tur: "Ökse Ardıcı", bedel: 4700 },
+            { id: "t177", tur: "Poyrazkuşu", bedel: 4700 },
+            { id: "t178", tur: "Sarıboğazlı Serçe", bedel: 4700 },
+            { id: "t179", tur: "Sığırıcık", bedel: 4700 },
+            { id: "t180", tur: "Söğüt Serçesi", bedel: 4700 },
+            { id: "t181", tur: "Suklavuzu", bedel: 4700 },
+            { id: "t182", tur: "Sutavuğu", bedel: 4700 },
+            { id: "t183", tur: "Sürmeli Kervançulluğu", bedel: 4700 },
+            { id: "t184", tur: "Şakrak", bedel: 4700 },
+            { id: "t185", tur: "Tarla Ardıcı", bedel: 4700 },
+            { id: "t186", tur: "Tarla Çintesi", bedel: 4700 },
+            { id: "t187", tur: "Tarlakuşu", bedel: 4700 },
+            { id: "t188", tur: "Tepeli Toygar", bedel: 4700 },
+            { id: "t189", tur: "Terek Düdükçünü", bedel: 4700 },
+            { id: "t190", tur: "Yeşilbacak", bedel: 4700 },
+            { id: "t191", tur: "Van Gölü Martısı", bedel: 4700 },
+            { id: "t192", tur: "Listede yer almayan kuş türleri", bedel: 2900 },
+            { id: "t193", tur: "İribaşlı Kaplumbağa", bedel: 80000 },
+            { id: "t194", tur: "Yeşil Kaplumbağa", bedel: 80000 },
+            { id: "t195", tur: "Nil Kaplumbağası", bedel: 80000 },
+            { id: "t196", tur: "Fırat Kaplumbağası", bedel: 80000 },
+            { id: "t197", tur: "Çöl Varanı", bedel: 80000 },
+            { id: "t198", tur: "Wagner Engereği", bedel: 40000 },
+            { id: "t199", tur: "Anadolu Engereği", bedel: 40000 },
+            { id: "t200", tur: "Yayla Engereği", bedel: 40000 },
+            { id: "t201", tur: "Kafkas Engereği", bedel: 40000 },
+            { id: "t202", tur: "Koca Engerek", bedel: 40000 },
+            { id: "t203", tur: "Şeritli Engerek", bedel: 40000 },
+            { id: "t204", tur: "Boynuzlu Engerek", bedel: 40000 },
+            { id: "t205", tur: "Kutup Engereği", bedel: 40000 },
+            { id: "t206", tur: "Çayır Engereği", bedel: 40000 },
+            { id: "t207", tur: "Filistin Engereği", bedel: 40000 },
+            { id: "t208", tur: "Bolkar Engereği", bedel: 40000 },
+            { id: "t209", tur: "Radde Engereği", bedel: 40000 },
+            { id: "t210", tur: "Küçük Engerek", bedel: 40000 },
+            { id: "t211", tur: "Listede yer almayan sürüngen türler", bedel: 10000 }
+        ];
+
+        // ============================================================
+        // İHLAL KÜTÜPHANESİ (4915 s.K. ve 2026-2027 MAK Kararı)
+        // ============================================================
+        const ihlalVerisi = [
+            { id: "k_6_2_a", kaynak: "4915 s.K. md. 6/2-a", aciklama: "Haznesi iki fişek alacak şekilde sınırlandırılmamış otomatik, yarı otomatik, pompalı vb. yivsiz av tüfekleri ile havalı tüfek ve tabancalarla avlanmak." },
+            { id: "k_6_2_c", kaynak: "4915 s.K. md. 6/2-c", aciklama: "Ses, manyetik dalga, ışık yayan araç ve gereçlerle, canlı mühre ile avlanmak." },
+            { id: "k_6_2_c_tuzak", kaynak: "4915 s.K. md. 6/2-ç", aciklama: "Her türlü kapan, olta, ilmek, ağ, ökse, alaca, kafes ve tuzaklarla avlanmak." },
+            { id: "k_6_2_d", kaynak: "4915 s.K. md. 6/2-d", aciklama: "Işık yayan araç ve gereçler, projektörler, aküyle çalışan el projektörleri ile avlanmak." },
+            { id: "k_6_2_e", kaynak: "4915 s.K. md. 6/2-e", aciklama: "Motorlu tekne ve benzeri araçlarla avlanmak, su kuşlarını ürkütüp havalandırmak." },
+            { id: "k_6_3", kaynak: "4915 s.K. md. 6/3", aciklama: "Avlanma amacı dışında avlaklarda silah taşımak, köpek bulundurmak." },
+            { id: "k_14_2_1", kaynak: "4915 s.K. md. 14/2-1", aciklama: "Avlaklarda, avcılık belgesi olmadan avlanmak." },
+            { id: "k_14_2_2", kaynak: "4915 s.K. md. 14/2-2", aciklama: "Avlaklarda, avlanma izni olmadan avlanmak." },
+            { id: "k_23_a", kaynak: "4915 s.K. md. 23", aciklama: "Merkez Av Komisyonunca avlanmanın yasaklandığı avlaklarda avlanmak." },
+            { id: "k_23_b", kaynak: "4915 s.K. md. 23", aciklama: "Özel kanunlarla avlanmanın yasaklandığı sahalarda ve koruma alanlarında avlanmak." },
+            { id: "k_24_1", kaynak: "4915 s.K. md. 24/1", aciklama: "6. maddede sayılan zehirle avlanma hariç diğer yasaklara ve esaslara aykırı hareket etmek." },
+            { id: "k_24_2", kaynak: "4915 s.K. md. 24/2", aciklama: "Zehirle avlanmak." },
+            { id: "k_24_3_belgesiz", kaynak: "4915 s.K. md. 24/3", aciklama: "Avcılık belgesini almadan avlanmak." },
+            { id: "k_24_3_izinsiz", kaynak: "4915 s.K. md. 24/3", aciklama: "Avlanma izni olmadan ve avlaklarda izin almadan avlanmak." },
+            { id: "k_24_3_yabanci", kaynak: "4915 s.K. md. 24/3", aciklama: "Yabancı avcılık belgesi veya geçici avcılık belgesi almadan avlanmak." },
+            { id: "k_24_3_belge_tasimama", kaynak: "4915 s.K. md. 24/3", aciklama: "Avcılık belgesini ve avlanma izin belgesini yanında taşımadan avlanmak." },
+            { id: "mak_5_1", kaynak: "2026-2027 MAK md. 5/1", aciklama: "Avlanma süreleri dışında avlanmak." },
+            { id: "mak_5_2", kaynak: "2026-2027 MAK md. 5/2", aciklama: "Avlanma günleri dışında avlanmak." },
+            { id: "mak_5_3", kaynak: "2026-2027 MAK md. 5/3", aciklama: "Gün doğumundan bir saat önce ve gün batımından bir saat sonrası dışında avlanmak." },
+            { id: "mak_6_limit", kaynak: "2026-2027 MAK md. 6/1", aciklama: "Avlanma limitlerinin (Tablo-4) üzerinde avlanmak." },
+            { id: "mak_8_avlak", kaynak: "2026-2027 MAK md. 8/2", aciklama: "Ava kapalı avlaklarda avlanmak." },
+            { id: "mak_8_mesafe", kaynak: "2026-2027 MAK md. 8/2", aciklama: "Meskun mahal, korunan alan sınırlarına 300/500 metre mesafede avlanmak." },
+            { id: "mak_10_1_a", kaynak: "2026-2027 MAK md. 10/1-a", aciklama: "Yasaklanan araç, gereç ve avlanma usullerini kullanmak." },
+            { id: "mak_10_1_dron", kaynak: "2026-2027 MAK md. 10/1-j", aciklama: "İnsansız hava araçları (dron vb.) ile avlanmak veya avı gözlemlemek." },
+            { id: "mak_11_gume", kaynak: "2026-2027 MAK md. 11/1-a", aciklama: "Su kuşları hariç diğer av ve yaban hayvanlarını güme kullanarak avlamak." },
+            { id: "mak_11_arac", kaynak: "2026-2027 MAK md. 11/1-b", aciklama: "Kara ve hava araçlarıyla hareket halindeyken avlanmak." },
+            { id: "mak_11_tekne", kaynak: "2026-2027 MAK md. 11/1-c", aciklama: "Motorlu tekneyle su kuşlarını ürkütüp havalandırarak bir yöne sürmek." },
+            { id: "mak_11_yavru", kaynak: "2026-2027 MAK md. 11/1-f", aciklama: "Yaban hayvanlarının yavrularını yakalamak, yumurtalarını toplamak." },
+            { id: "mak_11_tuzak_canli", kaynak: "2026-2027 MAK md. 11/1-ı", aciklama: "Tuzak, kapan, ilmek gibi araçlarla avı canlı veya yaralı olarak yakalamak." },
+            { id: "mak_13_surek", kaynak: "2026-2027 MAK md. 13/3", aciklama: "İzin verilen yer ve tarihlerde 25 avcı ve 25 sürenciden fazla sürek avı yapmak." },
+            { id: "mak_16_tazi", kaynak: "2026-2027 MAK md. 16/2", aciklama: "Tavşan haricinde tazı ile avlanmak veya av sırasında tüfek taşımak." },
+            { id: "mak_17_tasima", kaynak: "2026-2027 MAK md. 17/1", aciklama: "Korunma amaçlı av tüfeği taşıma belgesi olmadan tüfek taşımak." }
+        ];
+
+        let cezaSepeti = [];
+        let tazminatSepeti = [];
+        let ihlalSepeti = [];
+
+        // ============================================================
+        // BAŞLANGIÇ FONKSİYONLARI (İL, İLÇE, BÖLGE)
+        // ============================================================
+        function initBolgeMudurlukleri() {
+            // Tutanak formu için
+            const tutanakBolgeSelect = document.getElementById('tutanakBolge');
+            tutanakBolgeSelect.innerHTML = '<option value="">Bölge Seçin</option>';
+            
+            // Saha Denetimi formu için
+            const denetimBolgeSelect = document.getElementById('denetimBolge');
+            denetimBolgeSelect.innerHTML = '<option value="">Bölge Seçin</option>';
+
+            const bolgeler = Object.keys(dkmpBolgeIlVerisi).sort();
+            bolgeler.forEach(b => {
+                const opt1 = document.createElement('option');
+                opt1.value = b;
+                opt1.textContent = b;
+                tutanakBolgeSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = b;
+                opt2.textContent = b;
+                denetimBolgeSelect.appendChild(opt2);
+            });
+        }
+
+        // --- TUTANAK İÇİN BÖLGE VE İL SEÇİMLERİ ---
+        function bolgeSecimleriDoldur() {
+            const bolge = document.getElementById('tutanakBolge').value;
+            const ilSelect = document.getElementById('tutanakDkmpIl');
+            
+            ilSelect.innerHTML = '';
+            
+            if(!bolge) {
+                ilSelect.innerHTML = '<option value="">Önce Bölge Seçin</option>';
+                ilSelect.disabled = true;
+                document.getElementById('tutanakAvIl').value = "";
+                document.getElementById('tutanakAvIlce').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('tutanakAvIlce').disabled = true;
+                document.getElementById('tutanakAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('tutanakAvlak').disabled = true;
+                document.getElementById('tutanakAvlakManuel').style.display = 'none';
+                return;
+            }
+
+            ilSelect.disabled = false;
+            ilSelect.innerHTML = '<option value="">DKMP Müdürlüğü Seçin</option>';
+            const iller = dkmpBolgeIlVerisi[bolge].sort();
+            iller.forEach(il => {
+                const opt = document.createElement('option');
+                opt.value = il;
+                opt.textContent = il + " DKMP";
+                ilSelect.appendChild(opt);
+            });
+        }
+
+        function dkmpIlSecildi() {
+            const secilenIl = document.getElementById('tutanakDkmpIl').value;
+            
+            if (secilenIl) {
+                document.getElementById('tutanakAvIl').value = secilenIl;
+                ilceleriDoldurTutanak();
+            } else {
+                document.getElementById('tutanakAvIl').value = "";
+                document.getElementById('tutanakAvIlce').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('tutanakAvIlce').disabled = true;
+                document.getElementById('tutanakAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('tutanakAvlak').disabled = true;
+                document.getElementById('tutanakAvlakManuel').style.display = 'none';
+            }
+        }
+
+        // --- SAHA DENETİMİ İÇİN BÖLGE VE İL SEÇİMLERİ ---
+        function denetimBolgeSecildi() {
+            const bolge = document.getElementById('denetimBolge').value;
+            const ilSelect = document.getElementById('denetimDkmpIl');
+            
+            ilSelect.innerHTML = '';
+            
+            if(!bolge) {
+                ilSelect.innerHTML = '<option value="">Önce Bölge Seçin</option>';
+                ilSelect.disabled = true;
+                document.getElementById('denetimAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('denetimAvlak').disabled = true;
+                document.getElementById('denetimAvlakManuel').style.display = 'none';
+                return;
+            }
+
+            ilSelect.disabled = false;
+            ilSelect.innerHTML = '<option value="">DKMP Müdürlüğü Seçin</option>';
+            const iller = dkmpBolgeIlVerisi[bolge].sort();
+            iller.forEach(il => {
+                const opt = document.createElement('option');
+                opt.value = il;
+                opt.textContent = il + " DKMP";
+                ilSelect.appendChild(opt);
+            });
+        }
+
+        function denetimDkmpIlSecildi() {
+            const secilenIl = document.getElementById('denetimDkmpIl').value;
+            
+            if (secilenIl) {
+                document.getElementById('denetimAvlak').disabled = false;
+                
+                // Avlakları doldur
+                const avlakSelect = document.getElementById('denetimAvlak');
+                const manuelInput = document.getElementById('denetimAvlakManuel');
+                avlakSelect.innerHTML = '<option value="">Avlak / Saha Seçin</option>';
+                manuelInput.value = '';
+                manuelInput.style.display = 'none';
+
+                let ilAvlaklari = [];
+                for (const b in bolgeAvlakVerisi) {
+                    bolgeAvlakVerisi[b].forEach(avlak => {
+                        if (avlak.startsWith(secilenIl + " - ")) {
+                            ilAvlaklari.push(avlak);
+                        }
+                    });
+                }
+
+                if (ilAvlaklari.length === 0) {
+                    const optYok = document.createElement('option');
+                    optYok.value = "";
+                    optYok.disabled = true;
+                    optYok.textContent = "Bu ilde kayıtlı avlak bulunamadı. (Diğer seçeneğini kullanın)";
+                    avlakSelect.appendChild(optYok);
+                } else {
+                    ilAvlaklari.sort().forEach(avlak => {
+                        const opt = document.createElement('option');
+                        opt.value = avlak;
+                        opt.textContent = avlak;
+                        avlakSelect.appendChild(opt);
+                    });
+                }
+
+                const optDiger = document.createElement('option');
+                optDiger.value = "DIGER";
+                optDiger.textContent = "Diğer (Listede Yok)";
+                avlakSelect.appendChild(optDiger);
+
+            } else {
+                document.getElementById('denetimAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+                document.getElementById('denetimAvlak').disabled = true;
+                document.getElementById('denetimAvlakManuel').style.display = 'none';
+            }
+        }
+
+        function denetimAvlakSecimDegisti() {
+            const avlakSelect = document.getElementById('denetimAvlak');
+            const manuelInput = document.getElementById('denetimAvlakManuel');
+            
+            if(avlakSelect.value === 'DIGER') {
+                manuelInput.style.display = 'block';
+                manuelInput.required = true;
+            } else {
+                manuelInput.style.display = 'none';
+                manuelInput.required = false;
+                manuelInput.value = '';
+            }
+        }
+
+        function ilceleriDoldurTutanak() {
+            const il = document.getElementById('tutanakAvIl').value;
+            const ilceSelect = document.getElementById('tutanakAvIlce');
+            const avlakSelect = document.getElementById('tutanakAvlak');
+            const manuelInput = document.getElementById('tutanakAvlakManuel');
+
+            ilceSelect.innerHTML = '';
+            if(!il) {
+                ilceSelect.innerHTML = '<option value="">Önce İl Seçin</option>';
+                ilceSelect.disabled = true;
+            } else {
+                ilceSelect.disabled = false;
+                ilceSelect.innerHTML = '<option value="">İlçe Seçin</option>';
+                const ilceler = ilIlceVerisi[il].sort();
+                ilceler.forEach(ilce => {
+                    const opt = document.createElement('option');
+                    opt.value = ilce;
+                    opt.textContent = ilce;
+                    ilceSelect.appendChild(opt);
+                });
+            }
+
+            avlakSelect.innerHTML = '';
+            manuelInput.value = '';
+            manuelInput.style.display = 'none';
+
+            if(!il) {
+                avlakSelect.innerHTML = '<option value="">Önce İl Seçin</option>';
+                avlakSelect.disabled = true;
+                return;
+            }
+
+            avlakSelect.disabled = false;
+            avlakSelect.innerHTML = '<option value="">Avlak / Saha Seçin</option>';
+
+            let ilAvlaklari = [];
+            for (const bolge in bolgeAvlakVerisi) {
+                bolgeAvlakVerisi[bolge].forEach(avlak => {
+                    if (avlak.startsWith(il + " - ")) {
+                        ilAvlaklari.push(avlak);
+                    }
+                });
+            }
+
+            if (ilAvlaklari.length === 0) {
+                const optYok = document.createElement('option');
+                optYok.value = "";
+                optYok.disabled = true;
+                optYok.textContent = "Bu ilde kayıtlı avlak bulunamadı. (Diğer seçeneğini kullanın)";
+                avlakSelect.appendChild(optYok);
+            } else {
+                ilAvlaklari.sort().forEach(avlak => {
+                    const opt = document.createElement('option');
+                    opt.value = avlak;
+                    opt.textContent = avlak;
+                    avlakSelect.appendChild(opt);
+                });
+            }
+
+            const optDiger = document.createElement('option');
+            optDiger.value = "DIGER";
+            optDiger.textContent = "Diğer (Listede Yok)";
+            avlakSelect.appendChild(optDiger);
+        }
+
+        function avlakSecimDegisti() {
+            const avlakSelect = document.getElementById('tutanakAvlak');
+            const manuelInput = document.getElementById('tutanakAvlakManuel');
+            
+            if(avlakSelect.value === 'DIGER') {
+                manuelInput.style.display = 'block';
+                manuelInput.required = true;
+            } else {
+                manuelInput.style.display = 'none';
+                manuelInput.required = false;
+                manuelInput.value = '';
+            }
+        }
+
+        // ============================================================
+        // İHLAL KÜTÜPHANESİ FONKSİYONLARI
+        // ============================================================
+        function renderIhlalListesi(liste) {
+            const container = document.getElementById('ihlal-listesi-container');
+            container.innerHTML = '';
+            if(liste.length === 0) { container.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Bulunamadı.</div>'; return; }
+            
+            liste.forEach((ihlal) => {
+                const isAdded = ihlalSepeti.some(x => x.id === ihlal.id);
+                const div = document.createElement('div');
+                div.className = 'liste-oge';
+                div.innerHTML = `
+                    <div class="liste-oge-info">
+                        <div class="liste-oge-title">${ihlal.kaynak}</div>
+                        <div style="font-size:0.8rem; color:#333; margin-bottom:3px;">${ihlal.aciklama}</div>
+                    </div>
+                    <button type="button" class="btn-ekle" onclick="ihlalEkle('${ihlal.id}')" ${isAdded ? 'disabled' : ''}>${isAdded ? '✓ Eklendi' : '+ Ekle'}</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filtreleIhlalListesi() {
+            const arama = document.getElementById('ihlalArama').value.toLowerCase().trim();
+            const filtrelenmis = ihlalVerisi.filter(i => 
+                i.kaynak.toLowerCase().includes(arama) || 
+                i.aciklama.toLowerCase().includes(arama)
+            );
+            renderIhlalListesi(filtrelenmis);
+        }
+
+        function ihlalEkle(id) {
+            const ihlal = ihlalVerisi.find(x => x.id === id);
+            if(!ihlal || ihlalSepeti.some(item => item.id === id)) return;
+            ihlalSepeti.push({ ...ihlal });
+            filtreleIhlalListesi();
+            renderIhlalSepeti();
+        }
+
+        function ihlalKaldir(index) {
+            ihlalSepeti.splice(index, 1);
+            filtreleIhlalListesi();
+            renderIhlalSepeti();
+        }
+
+        function renderIhlalSepeti() {
+            const sepetDiv = document.getElementById('ihlal-sepeti');
+            const sayiEl = document.getElementById('ihlalSepetSayisi');
+            sepetDiv.innerHTML = '';
+            sayiEl.innerText = ihlalSepeti.length;
+
+            if(ihlalSepeti.length === 0) {
+                sepetDiv.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Henüz ihlal eklenmedi.</div>';
+            } else {
+                ihlalSepeti.forEach((ihlal, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'sepet-oge';
+                    div.innerHTML = `
+                        <div class="sepet-oge-row"><div class="sepet-oge-title">${ihlal.kaynak}</div></div>
+                        <div class="sepet-oge-row">
+                            <div style="font-size:0.85rem; color:#333; flex:1; padding-right:10px;">${ihlal.aciklama}</div>
+                            <button type="button" class="btn-kaldir" onclick="ihlalKaldir(${i})">Kaldır ✕</button>
+                        </div>
+                    `;
+                    sepetDiv.appendChild(div);
+                });
+            }
+        }
+
+        // ============================================================
+        // EKRAN GEÇİŞLERİ VE LİSTELEMELER
+        // ============================================================
+        function navigateTo(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + screenId).classList.add('active');
+            window.scrollTo(0,0);
+            if(screenId === 'denetim-kayitlari') loadDenetimler();
+            if(screenId === 'tutanaklar') {
+                loadTutanaklar();
+                renderIhlalListesi(ihlalVerisi);
+                renderIhlalSepeti();
+            }
+            if(screenId === 'yaptirimlar') {
+                renderCezaListesi(cezaVerisi);
+                renderCezaSepeti();
+            }
+            if(screenId === 'tazminatlar') {
+                renderTazminatListesi(tazminatVerisi);
+                renderTazminatSepeti();
+            }
+            if(screenId === 'raporlar') loadRaporlar();
+        }
+
+        // --- SAHA DENETİMİ İŞLEMLERİ ---
+        function konumAl() {
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.getElementById('denetimKoordinat').value = pos.coords.latitude.toFixed(5) + ", " + pos.coords.longitude.toFixed(5);
+                }, () => alert("Konum alınamadı."));
+            } else { alert("Konum servisi yok."); }
+        }
+
+        document.getElementById('form-denetim').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            let avlakDegeri = document.getElementById('denetimAvlak').value;
+            if(avlakDegeri === 'DIGER') {
+                avlakDegeri = document.getElementById('denetimAvlakManuel').value.trim() || 'Belirtilmedi';
+            }
+
+            await db.denetimler.add({
+                tarih: document.getElementById('denetimTarih').value,
+                bolge: document.getElementById('denetimBolge').value,
+                dkmpIl: document.getElementById('denetimDkmpIl').value,
+                avlak: avlakDegeri,
+                mevkiTuru: document.getElementById('denetimMevkiTuru').value,
+                yer: document.getElementById('denetimYer').value,
+                koordinat: document.getElementById('denetimKoordinat').value,
+                durum: document.getElementById('denetimDurum').value,
+                notlar: document.getElementById('denetimNot').value
+            });
+            alert('✅ Denetim kaydedildi!');
+            e.target.reset();
+            document.getElementById('denetimTarih').value = new Date().toISOString().slice(0, 16);
+            document.getElementById('denetimDkmpIl').innerHTML = '<option value="">Önce Bölge Seçin</option>';
+            document.getElementById('denetimDkmpIl').disabled = true;
+            document.getElementById('denetimAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+            document.getElementById('denetimAvlak').disabled = true;
+            document.getElementById('denetimAvlakManuel').style.display = 'none';
+            navigateTo('denetim-kayitlari');
+        });
+
+        async function loadDenetimler() {
+            const listeDiv = document.getElementById('denetim-listesi');
+            listeDiv.innerHTML = '';
+            const denetimler = await db.denetimler.reverse().toArray();
+            if(denetimler.length === 0) { listeDiv.innerHTML = '<p>Kayıt yok.</p>'; return; }
+            denetimler.forEach(d => {
+                let renk = d.durum === 'Kusur Yok' ? 'green' : 'red';
+                let konumStr = d.dkmpIl ? `${d.dkmpIl}` : 'İl belirtilmedi';
+                let mevkiTuruStr = d.mevkiTuru ? `[${d.mevkiTuru}]` : '';
+                listeDiv.innerHTML += `<div class="list-item"><button class="btn-sil" onclick="silDenetim(${d.id})">Sil</button><h4>${konumStr}</h4><small>📍 ${mevkiTuruStr} ${d.avlak} - ${d.yer}</small><small>📅 ${new Date(d.tarih).toLocaleString('tr-TR')}</small><div style="margin-top:5px; color:${renk}; font-weight:bold;">${d.durum}</div><small>📝 ${d.notlar || '-'}</small></div>`;
+            });
+        }
+        async function silDenetim(id) { if(confirm("Silinsin mi?")) { await db.denetimler.delete(id); loadDenetimler(); } }
+
+        // --- TUTANAK İŞLEMLERİ ---
+        document.getElementById('form-tutanak').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const checkboxes = document.querySelectorAll('#tutanakElKonulanAracListesi input[type="checkbox"]:checked');
+            let secilenAraclar = Array.from(checkboxes).map(cb => cb.value);
+            const digerArac = document.getElementById('tutanakElKonulanAracDiger').value.trim();
+            if(digerArac) secilenAraclar.push(digerArac);
+            const aracStr = secilenAraclar.join(', ');
+
+            let avlakDegeri = document.getElementById('tutanakAvlak').value;
+            if(avlakDegeri === 'DIGER') {
+                avlakDegeri = document.getElementById('tutanakAvlakManuel').value.trim() || 'Belirtilmedi';
+            }
+
+            const tutanakData = {
+                bolge: document.getElementById('tutanakBolge').value,
+                dkmpIl: document.getElementById('tutanakDkmpIl').value,
+                seri: document.getElementById('tutanakSeri').value,
+                sayfaNo: document.getElementById('tutanakSayfaNo').value,
+                tutanakNo: document.getElementById('tutanakNo').value,
+                muhatap: document.getElementById('tutanakMuhatap').value,
+                tcNo: document.getElementById('tutanakTc').value,
+                babaAdi: document.getElementById('tutanakBabaAdi').value,
+                dogumYeri: document.getElementById('tutanakDogumYeri').value,
+                dogumTarihi: document.getElementById('tutanakDogumTarihi').value,
+                adres: document.getElementById('tutanakAdres').value,
+                elKonulanArac: aracStr,
+                elKonulanAv: document.getElementById('tutanakElKonulanAv').value,
+                avIl: document.getElementById('tutanakAvIl').value,
+                avIlce: document.getElementById('tutanakAvIlce').value,
+                avlak: avlakDegeri,
+                avMevki: document.getElementById('tutanakAvMevki').value,
+                avSaat: document.getElementById('tutanakAvSaat').value,
+                ihlaller: ihlalSepeti.map(i => `${i.kaynak}: ${i.aciklama}`),
+                metin: document.getElementById('tutanakMetin').value,
+                tarih: new Date().toISOString()
+            };
+
+            await db.tutanaklar.add(tutanakData);
+            alert('✅ Tutanak başarıyla kaydedildi!');
+            e.target.reset();
+            document.getElementById('tutanakDkmpIl').innerHTML = '<option value="">Önce Bölge Seçin</option>';
+            document.getElementById('tutanakDkmpIl').disabled = true;
+            document.getElementById('tutanakAvIl').value = "";
+            document.getElementById('tutanakAvIlce').innerHTML = '<option value="">Önce İl Seçin</option>';
+            document.getElementById('tutanakAvIlce').disabled = true;
+            document.getElementById('tutanakAvlak').innerHTML = '<option value="">Önce İl Seçin</option>';
+            document.getElementById('tutanakAvlak').disabled = true;
+            document.getElementById('tutanakAvlakManuel').style.display = 'none';
+            ihlalSepeti = [];
+            document.getElementById('ihlalArama').value = '';
+            renderIhlalListesi(ihlalVerisi);
+            renderIhlalSepeti();
+            loadTutanaklar();
+        });
+
+        async function loadTutanaklar() {
+            const listeDiv = document.getElementById('tutanak-listesi');
+            listeDiv.innerHTML = '';
+            const tutanaklar = await db.tutanaklar.reverse().toArray();
+            if(tutanaklar.length === 0) { listeDiv.innerHTML = '<p>Henüz tutanak eklenmedi.</p>'; return;}
+            
+            tutanaklar.forEach(t => {
+                let ihlalStr = (t.ihlaller && t.ihlaller.length > 0) ? t.ihlaller.join('<br>') : 'Belirtilmedi';
+                listeDiv.innerHTML += `
+                <div class="list-item" style="border-color: #0d47a1;">
+                    <button class="btn-sil" onclick="silTutanak(${t.id})">Sil</button>
+                    <h4>No: ${t.tutanakNo} - ${t.muhatap}</h4>
+                    <small>Müdürlük: ${t.dkmpIl} DKMP</small><br>
+                    <small>İhlal: ${ihlalStr}</small>
+                    <div style="margin-top:10px;">
+                        <button class="btn btn-outline" style="padding:8px; font-size:0.8rem;" onclick="yazdirTutanak(${t.id})">🖨️ Resmi Belge Olarak Yazdır</button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        async function silTutanak(id) { if(confirm("Silinsin mi?")) { await db.tutanaklar.delete(id); loadTutanaklar(); } }
+
+        async function yazdirTutanak(id) {
+            const t = await db.tutanaklar.get(id);
+            
+            document.getElementById('p-bolge').innerText = t.bolge;
+            document.getElementById('p-dkmp').innerText = t.dkmpIl + " DKMP Müdürlüğü";
+            document.getElementById('p-seri').innerText = t.seri;
+            document.getElementById('p-sayfa').innerText = t.sayfaNo;
+            document.getElementById('p-no').innerText = t.tutanakNo;
+            
+            document.getElementById('p-muhatap').innerText = t.muhatap;
+            document.getElementById('p-tc').innerText = t.tcNo;
+            document.getElementById('p-baba').innerText = t.babaAdi;
+            document.getElementById('p-dogumyeri').innerText = t.dogumYeri;
+            document.getElementById('p-dogumtarihi').innerText = t.dogumTarihi ? new Date(t.dogumTarihi).toLocaleDateString('tr-TR') : '';
+            document.getElementById('p-adres').innerText = t.adres;
+            
+            document.getElementById('p-elkonulanarac').innerText = t.elKonulanArac || 'Yok';
+            document.getElementById('p-elkonulanav').innerText = t.elKonulanAv || 'Yok';
+            
+            document.getElementById('p-avil').innerText = t.avIl;
+            document.getElementById('p-avilce').innerText = t.avIlce;
+            document.getElementById('p-avlak').innerText = t.avlak;
+            document.getElementById('p-avmevki').innerText = t.avMevki;
+            document.getElementById('p-avsaat').innerText = t.avSaat;
+            
+            let ihlalHtml = '';
+            if (t.ihlaller && t.ihlaller.length > 0) {
+                ihlalHtml = t.ihlaller.map(i => `• ${i}`).join('<br>');
+            } else {
+                ihlalHtml = 'Belirtilmedi';
+            }
+            document.getElementById('p-ihlal-listesi').innerHTML = ihlalHtml;
+            
+            document.getElementById('p-metin').innerText = t.metin;
+            
+            window.print();
+        }
+
+        // --- İDARİ CEZA İŞLEMLERİ ---
+        function renderCezaListesi(liste) {
+            const container = document.getElementById('ceza-listesi-container');
+            container.innerHTML = '';
+            if(liste.length === 0) { container.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Bulunamadı.</div>'; return; }
+            liste.forEach((c) => {
+                const isAdded = cezaSepeti.some(x => x.id === c.id);
+                const div = document.createElement('div');
+                div.className = 'liste-oge';
+                div.innerHTML = `
+                    <div class="liste-oge-info">
+                        <div class="liste-oge-title">Md. ${c.madde}</div>
+                        <div style="font-size:0.8rem; color:#333; margin-bottom:3px;">${c.tanim}</div>
+                        <div class="liste-oge-price">${c.tutar.toLocaleString('tr-TR')} ₺</div>
+                    </div>
+                    <button type="button" class="btn-ekle" onclick="cezaEkle('${c.id}')" ${isAdded ? 'disabled' : ''}>${isAdded ? '✓ Eklendi' : '+ Ekle'}</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filtreleCezaListesi() {
+            const arama = document.getElementById('cezaArama').value.toLowerCase().trim();
+            const filtrelenmis = cezaVerisi.filter(c => c.madde.toLowerCase().includes(arama) || c.tanim.toLowerCase().includes(arama));
+            renderCezaListesi(filtrelenmis);
+        }
+
+        function cezaEkle(id) {
+            const c = cezaVerisi.find(x => x.id === id);
+            if(!c || cezaSepeti.some(item => item.id === id)) return;
+            cezaSepeti.push({ ...c });
+            filtreleCezaListesi();
+            renderCezaSepeti();
+        }
+
+        function cezaKaldir(index) {
+            cezaSepeti.splice(index, 1);
+            filtreleCezaListesi();
+            renderCezaSepeti();
+        }
+
+        function renderCezaSepeti() {
+            const sepetDiv = document.getElementById('ceza-sepeti');
+            const sayiEl = document.getElementById('cezaSepetSayisi');
+            sepetDiv.innerHTML = '';
+            sayiEl.innerText = cezaSepeti.length;
+
+            if(cezaSepeti.length === 0) {
+                sepetDiv.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Henüz ihlal eklenmedi.</div>';
+            } else {
+                cezaSepeti.forEach((c, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'sepet-oge';
+                    div.innerHTML = `
+                        <div class="sepet-oge-row"><div class="sepet-oge-title">Md. ${c.madde} - ${c.tanim}</div></div>
+                        <div class="sepet-oge-row">
+                            <div style="font-size:0.9rem; color:#d00000; font-weight:bold;">${c.tutar.toLocaleString('tr-TR')} ₺</div>
+                            <button type="button" class="btn-kaldir" onclick="cezaKaldir(${i})">Kaldır ✕</button>
+                        </div>
+                    `;
+                    sepetDiv.appendChild(div);
+                });
+            }
+            guncelleCezaToplam();
+        }
+
+        function guncelleCezaToplam() {
+            const carpan = parseInt(document.querySelector('input[name="cezaCarpan"]:checked').value);
+            let toplam = 0;
+            cezaSepeti.forEach(c => { toplam += c.tutar; });
+            toplam = toplam * carpan;
+            document.getElementById('cezaToplamTutar').innerText = toplam.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+        }
+
+        document.getElementById('form-ceza').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(cezaSepeti.length === 0) return alert("Lütfen en az bir ihlal ekleyin.");
+            const carpan = parseInt(document.querySelector('input[name="cezaCarpan"]:checked').value);
+            let toplam = 0, maddeler = [];
+            cezaSepeti.forEach(c => { toplam += c.tutar; maddeler.push(c.madde); });
+            toplam = toplam * carpan;
+            const carpanText = carpan === 1 ? "" : ` (${carpan}x Çarpan)`;
+            
+            await db.cezalar.add({
+                muhatap: document.getElementById('cezaMuhatap').value,
+                cezaTuru: `Md: ${maddeler.join(', ')}${carpanText}`,
+                tutar: toplam,
+                tarih: new Date().toISOString()
+            });
+            alert('✅ Cezalar kaydedildi.');
+            e.target.reset();
+            cezaSepeti = [];
+            document.getElementById('cezaArama').value = '';
+            renderCezaListesi(cezaVerisi);
+            renderCezaSepeti();
+            loadCezalar();
+        });
+
+        async function loadCezalar() {
+            const listeDiv = document.getElementById('ceza-kayitlari');
+            listeDiv.innerHTML = '';
+            const veriler = await db.cezalar.reverse().toArray();
+            veriler.forEach(c => {
+                listeDiv.innerHTML += `<div class="list-item" style="border-color: #d00000;"><h4>${c.muhatap}</h4><small>${c.cezaTuru}</small><br><strong style="color:#d00000;">${c.tutar.toLocaleString('tr-TR')} ₺</strong></div>`;
+            });
+        }
+
+        // --- TAZMİNAT İŞLEMLERİ ---
+        function renderTazminatListesi(liste) {
+            const container = document.getElementById('tazminat-listesi-container');
+            container.innerHTML = '';
+            if(liste.length === 0) { container.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Bulunamadı.</div>'; return; }
+            liste.forEach((t) => {
+                const isAdded = tazminatSepeti.some(x => x.id === t.id);
+                const div = document.createElement('div');
+                div.className = 'liste-oge';
+                div.innerHTML = `
+                    <div class="liste-oge-info">
+                        <div class="liste-oge-title">${t.tur}</div>
+                        <div class="liste-oge-price">${t.bedel.toLocaleString('tr-TR')} ₺</div>
+                    </div>
+                    <button type="button" class="btn-ekle" onclick="tazminatEkle('${t.id}')" ${isAdded ? 'disabled' : ''}>${isAdded ? '✓ Eklendi' : '+ Ekle'}</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filtreleTazminatListesi() {
+            const arama = document.getElementById('tazminatArama').value.toLowerCase().trim();
+            const filtrelenmis = tazminatVerisi.filter(t => t.tur.toLowerCase().includes(arama));
+            renderTazminatListesi(filtrelenmis);
+        }
+
+        function tazminatEkle(id) {
+            const t = tazminatVerisi.find(x => x.id === id);
+            if(!t) return;
+            const mevcut = tazminatSepeti.find(item => item.id === id);
+            if(mevcut) { mevcut.adet += 1; } else { tazminatSepeti.push({ id: t.id, tur: t.tur, bedel: t.bedel, adet: 1 }); }
+            filtreleTazminatListesi();
+            renderTazminatSepeti();
+        }
+
+        function tazminatKaldir(index) {
+            tazminatSepeti.splice(index, 1);
+            filtreleTazminatListesi();
+            renderTazminatSepeti();
+        }
+
+        function tazminatAdetDegistir(index, yeniAdet) {
+            const adet = parseInt(yeniAdet);
+            tazminatSepeti[index].adet = adet > 0 ? adet : 1;
+            renderTazminatSepeti();
+        }
+
+        function renderTazminatSepeti() {
+            const sepetDiv = document.getElementById('tazminat-sepeti');
+            const sayiEl = document.getElementById('tazminatSepetSayisi');
+            sepetDiv.innerHTML = '';
+            sayiEl.innerText = tazminatSepeti.length;
+
+            if(tazminatSepeti.length === 0) {
+                sepetDiv.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">Henüz tür eklenmedi.</div>';
+            } else {
+                tazminatSepeti.forEach((t, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'sepet-oge';
+                    div.innerHTML = `
+                        <div class="sepet-oge-row"><div class="sepet-oge-title">${t.tur}</div></div>
+                        <div class="sepet-oge-row" style="margin-top:8px;">
+                            <div class="sepet-oge-actions">
+                                <span style="font-size:0.85rem; font-weight:600;">Adet:</span>
+                                <input type="number" min="1" value="${t.adet}" onchange="tazminatAdetDegistir(${i}, this.value)">
+                            </div>
+                            <div style="font-size:0.9rem; color:#0d47a1; font-weight:bold;">${(t.bedel * t.adet).toLocaleString('tr-TR')} ₺</div>
+                        </div>
+                        <div style="text-align:right; margin-top:5px;"><button type="button" class="btn-kaldir" onclick="tazminatKaldir(${i})">Kaldır ✕</button></div>
+                    `;
+                    sepetDiv.appendChild(div);
+                });
+            }
+            guncelleTazminatToplam();
+        }
+
+        function guncelleTazminatToplam() {
+            let toplam = 0;
+            tazminatSepeti.forEach(t => { toplam += (t.bedel * t.adet); });
+            document.getElementById('tazminatToplamTutar').innerText = toplam.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+        }
+
+        document.getElementById('form-tazminat').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(tazminatSepeti.length === 0) return alert("Lütfen en az bir tür ekleyin.");
+            let toplam = 0, turlerStr = [];
+            tazminatSepeti.forEach(t => { toplam += (t.bedel * t.adet); turlerStr.push(`${t.tur} (${t.adet} adet)`); });
+
+            await db.tazminatlar.add({
+                muhatap: document.getElementById('tazminatMuhatap').value,
+                tur: turlerStr.join(', '),
+                tutar: toplam,
+                tarih: new Date().toISOString()
+            });
+            alert('✅ Tazminatlar kaydedildi.');
+            e.target.reset();
+            tazminatSepeti = [];
+            document.getElementById('tazminatArama').value = '';
+            renderTazminatListesi(tazminatVerisi);
+            renderTazminatSepeti();
+        });
+
+        // --- RAPORLAR VE AYARLAR ---
+        async function loadRaporlar() {
+            document.getElementById('stat-denetim').innerText = await db.denetimler.count();
+            document.getElementById('stat-tutanak').innerText = await db.tutanaklar.count();
+            const cezalar = await db.cezalar.toArray();
+            const toplamCeza = cezalar.reduce((acc, curr) => acc + curr.tutar, 0);
+            document.getElementById('stat-ceza').innerText = toplamCeza.toLocaleString('tr-TR') + " ₺";
+        }
+
+        async function veriYedekle() {
+            const data = {
+                denetimler: await db.denetimler.toArray(),
+                tutanaklar: await db.tutanaklar.toArray(),
+                cezalar: await db.cezalar.toArray(),
+                tazminatlar: await db.tazminatlar.toArray(),
+                surum: 3,
+                tarih: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `saha_yedek_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+        
+        async function yedektenYukle(event) {
+            const input = event.target;
+            const file = input.files && input.files[0];
+            if (!file) return;
+            try {
+                if (file.size > 30 * 1024 * 1024) throw new Error('Yedek dosyası 30 MB sınırını aşıyor.');
+                const data = JSON.parse(await file.text());
+                const tablolar = ['denetimler','tutanaklar','cezalar','tazminatlar'];
+                if (!data || typeof data !== 'object' || !Array.isArray(data.denetimler) || !Array.isArray(data.tutanaklar)) {
+                    throw new Error('Geçerli bir sistem yedeği değil.');
+                }
+                for (const t of tablolar) {
+                    if (data[t] !== undefined && (!Array.isArray(data[t]) || data[t].some(x => !x || typeof x !== 'object' || Array.isArray(x))))
+                        throw new Error('Yedek biçimi geçersiz: ' + t);
+                }
+                if (!confirm('DİKKAT: Bu işlem cihazdaki TÜM mevcut kayıtların yerine yedekteki kayıtları koyacak. Önce yedek aldınız mı?')) return;
+                await db.transaction('rw', ...tablolar.map(t=>db[t]), async () => {
+                    for (const t of tablolar) {
+                        await db[t].clear();
+                        if (data[t]?.length) await db[t].bulkAdd(data[t]);
+                    }
+                });
+                alert('Yedek geri yüklendi. Sayfa yenilenecek.');
+                location.reload();
+            } catch (err) {
+                alert('Geri yükleme başarısız: ' + err.message);
+            } finally { input.value = ''; }
+        }
+        async function verileriSifirla() {
+            if(confirm("TÜM VERİLER SİLİNECEK! Emin misiniz?")) {
+                await db.delete();
+                alert("Veritabanı sıfırlandı.");
+                location.reload();
+            }
+        }
+
+        // Başlangıç
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('denetimTarih').value = new Date().toISOString().slice(0, 16);
+            initBolgeMudurlukleri();
+            // İhlal listesini varsayılan olarak yükle
+            renderIhlalListesi(ihlalVerisi);
+            renderIhlalSepeti();
+        });
+    </script>
+</body>
+</html>
